@@ -1,0 +1,132 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce Future Work</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce Future Work</h1> 
+              <em>Note: This library is not yet part of the Boost Library and is still under development and review.</em> 
+            </div> 
+ 
+            <div class="section-body">
+            <p>
+              This is the first release of the MapReduce library, and there are a few features
+              that I'd still like to do.
+            </p>
+            <ul>
+              <li>
+                <p>Improve support for other platforms. This will require help from the Boost development community.</p>
+              </li>
+              <li>
+                <p>Add a <code>PartioningFunction</code> parameter in <code>local_disk</code> intermediate
+                handler to enable custominsation of the partitioning of data into the final result files.</p>
+              </li>
+              <li>
+                <p>Add a template to the <code>SortFn</code> sort function to prevent expansion of duplicates
+                if required. (For example, this expansion contradicts the <code>combiner</code> in wordcount,
+                and eliminating the two would improve performance considerably).</p>
+              </li>
+              <li>
+                <p>An extension to the <code>intermediates::local_disk<></code> policy class could be to compress
+                the intermediate files, using the Boost.Iostreams zip/bzip2 compression libraries. This is a
+                long-term item that will be very useful when the library is extended to supported cross-machine
+                MapReduce. Until then, the value is very limited.</p>
+              </li>
+            </ul>
+            <h2>Multiple Machine Support</h2>
+            <p>
+              MapReduce was originally designed as a mechanism for working on large datasets across many (1000s) of
+              commodity servers. The current Boost library works across a plurality of CPU cores on a single machine.
+              There is a big jump to multi-machine support, so this is a long-term goal, but a goal nonetheless.
+            </p>
+            <h2>Distributed File System</h2>
+            <p>
+              To support the MapReduce across multiple machines, some form of distributed file system is required. I
+              have <a href='http://craighenderson.co.uk/blog/index.php/tag/distributed-file-system/'>begun development
+              of one using Boost libraries</a> (primarily Boost.FileSystem and Boost.Asio). The
+              question is going to be whether this really sits within Boost as a C++ library, or whether it is really
+              a runtime environment for MapReduce to sit atop. My feeling is that there is some value in having a scalable
+              and resilient DFS which is peerless and heterogenous across all platforms as a library that can be built into
+              an application, but whether that is the really remains to be seen.
+            </p>
+            </div>
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="p" href="./platform.html"><img src="http://www.boost.org/doc/html/images/prev.png" alt="Prev" /></a>
+        <a accesskey="u" href="http://www.boost.org/doc/libs"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+        <div id="banners"> 
+    <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer"
+    class="external">XHTML 1.0</a></p> 
+ 
+    <p id="banner-css"><a href=
+    "http://jigsaw.w3.org/css-validator/check/referer" class=
+    "external">CSS</a></p> 
+ 
+    <p id="banner-osi"><a href=
+    "http://www.opensource.org/docs/definition.php" class="external">OSI
+    Certified</a></p> 
+  </div> 
+    </div> 
+ 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html> 

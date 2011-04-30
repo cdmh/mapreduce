@@ -1,0 +1,200 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce platform notes</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+ 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce platform notes</h1> 
+              <em>Note: This library is not yet part of the Boost Library and is still under development and review.</em> 
+            </div> 
+ 
+            <div class="section-body"> 
+            <h2>Microsoft Windows and MSVC 8 (2005)</h2>
+            <p>
+              This library has been developed and tested using Micrsoft Visual C++ v8, aka Visual Studio 2005.
+              The code compiles cleanly for and runs as 32bit and 64bit processes on Windows XP 32Bit and Windows
+              2003 Server 64Bit Edition.</p>
+            <h2>STL</h2>
+            <p>
+              The STL implementation supplied with Micrsoft Visual C++ v8 suffers significant performance
+              problems as it includes indiscriminate fine granularity synchronisation locking. The MapReduce
+              library is designed to be a high performance library and partitions data such that multiple threads
+              can process data independently of other threads. The unnecessary overhead of locking in MSVC8's STL
+              library negates some of the high-performance benefits of the library.
+            </p>
+            <p>
+              I therefore recommend using an alternative STL implementation to achieve maximum performance. I have
+              tested the library with STLPort 5.2.1, compiled without thread support
+              <pre>STLport-5.2.1>configure msvc8 -p winxp -x --without-thread --with-dynamic-rtl</pre> and have seen
+              significant time differences. Using the <a href='./wordcount.html'>Word Count example</a> on a sample
+              dataset consists of six plain text files consisting a total of 90.8 MB (95,284,354 bytes), the STLPort
+              version ran in 26% of the time taken using the MSVC STL.
+            </p>
+<pre>
+MapReduce Wordcount Application
+2 CPU cores
+class mapreduce::job&lt;class wordcount::map_task,class wordcount::reduce_task,clas
+s wordcount::combiner,class mapreduce::datasource::directory_iterator&lt;class word
+count::map_task&gt;,class mapreduce::intermediates::local_disk&lt;class wordcount::map
+_task,struct mapreduce::detail::file_sorter,struct mapreduce::detail::file_merge
+r&gt; &gt;
+
+Running CPU Parallel MapReduce...
+CPU Parallel MapReduce Finished.
+
+MapReduce statistics:
+  MapReduce job runtime                     : 434 seconds, of which...
+    Map phase runtime                       : 418 seconds
+    Reduce phase runtime                    : 16 seconds
+
+  Map:
+    Total Map keys                          : 6
+    Map keys processed                      : 6
+    Map key processing errors               : 0
+    Number of Map Tasks run (in parallel)   : 2
+    Fastest Map key processed in            : 8 seconds
+    Slowest Map key processed in            : 389 seconds
+    Average time to process Map keys        : 81 seconds
+
+  Reduce:
+    Number of Reduce Tasks run (in parallel): 2
+    Number of Result Files                  : 10
+    Fastest Reduce key processed in         : 2 seconds
+    Slowest Reduce key processed in         : 4 seconds
+    Average time to process Reduce keys     : 5 seconds</pre>
+<pre>
+MapReduce Wordcount Application
+2 CPU cores
+class mapreduce::job&lt;class wordcount::map_task,class wordcount::reduce_task,clas
+s wordcount::combiner,class mapreduce::datasource::directory_iterator&lt;class word
+count::map_task&gt;,class mapreduce::intermediates::local_disk&lt;class wordcount::map
+_task,struct mapreduce::detail::file_sorter,struct mapreduce::detail::file_merge
+r&gt; &gt;
+
+Running CPU Parallel MapReduce...
+CPU Parallel MapReduce Finished.
+
+MapReduce statistics:
+  MapReduce job runtime                     : 116 seconds, of which...
+    Map phase runtime                       : 114 seconds
+    Reduce phase runtime                    : 2 seconds
+
+  Map:
+    Total Map keys                          : 6
+    Map keys processed                      : 6
+    Map key processing errors               : 0
+    Number of Map Tasks run (in parallel)   : 2
+    Fastest Map key processed in            : 1 seconds
+    Slowest Map key processed in            : 112 seconds
+    Average time to process Map keys        : 19 seconds
+
+  Reduce:
+    Number of Reduce Tasks run (in parallel): 2
+    Number of Result Files                  : 10
+    Fastest Reduce key processed in         : 0 seconds
+    Slowest Reduce key processed in         : 1 seconds
+    Average time to process Reduce keys     : 0 seconds
+</pre>
+            <h2>gcc 3.4.4 under cygwin</h2>
+            <p>
+              I have successfully compiled using GCC 3.4.4 under Cygwin, but do not have a full
+              development environment with Boost et al. to run any tests.</p>
+            <pre>$ g++ -Wall -c -I../../../.. -I/cygdrive/c/root/Development/Library/Boost/boost_1_39_0 wordcount.cpp</pre>
+            <p>
+              There are also some missing functions in the <code>linux_os</code> namespace which
+              I have not implemented. Any help implementing these for non-Windows platforms is appreciated.</p>  
+<pre>
+namespace linux_os {
+    unsigned const  number_of_cpus(void);                            // !!! not implemented
+    std::string    &get_temporary_filename(std::string &pathname);   // !!! not implemented
+}   // namespace linux_os
+</pre>
+            <h2>gcc 4.3.3 on Ubuntu Linux 9.04</h2>
+            <p>
+              I have successfully compiled using GCC 4.3.3 on Ubuntu Linux 9.04 (32bit), but do not yet have a full
+              development environment with Boost et al. to run any tests.</p>
+            <pre>$ g++ -Wall -c -I../../../.. -I/cygdrive/c/root/Development/Library/Boost/boost_1_39_0 wordcount.cpp</pre>
+            
+            </div>
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="p" href="./schedule_policies.html"><img src="http://www.boost.org/doc/html/images/prev.png" alt="Prev" /></a>
+        <a accesskey="u" href="http://www.boost.org/doc/libs"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+        <a accesskey="n" href="./future.html"><img src="http://www.boost.org/doc/html/images/next.png" alt="Next" /></a>
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+        <div id="banners"> 
+    <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer"
+    class="external">XHTML 1.0</a></p> 
+ 
+    <p id="banner-css"><a href=
+    "http://jigsaw.w3.org/css-validator/check/referer" class=
+    "external">CSS</a></p> 
+ 
+    <p id="banner-osi"><a href=
+    "http://www.opensource.org/docs/definition.php" class="external">OSI
+    Certified</a></p> 
+  </div> 
+    </div> 
+ 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html> 

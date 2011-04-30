@@ -1,0 +1,532 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce Word Count example</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+ 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce Word Count example</h1> 
+              <em>Note: This library is not yet part of the Boost Library and is still under development and review.</em> 
+            </div> 
+ 
+<div class="section-body">
+<p>
+By way of an example of using the MapReduce library, we implement a Word Count application.
+We'll use a <code>datasource</code> class supplied by the library to iterate through a directory
+of files containing words to be counted. The Map phase will create a list of words and a count of 1,
+and the Reduce phase will accept a list of words and corresponding counts, total the counts
+for each word, and produce a final list of words with their totals.
+</p>
+<pre>
+map (filename; string, file stream; ifstream) --&gt; list(word; string, count; unsigned int)
+reduce (word; string, list(count; unsigned int)) --&gt; list(count; unsigned int)</pre>
+
+<h2>MapTask</h2>
+<p>
+  The MapTask will be implemented by a function-object <code>wordcount::map_task</code>. There are two required
+  data types to be defined by the MapTask. These are defined by the base class via template parameters. These are
+  <code>key</code>/<code>value</code> types of the input of the map task.
+</p>
+<p>
+  The map function operator takes three parameters; the <code>runtime</code> which is passed by the MapReduce
+  library to be used as a callback to <em>emit</em> intermediate key/value pairs. The other two parameters are the
+  <code>key</code> and <code>value</code> for the map task to process. Normally these parameters would be expected
+  to be passed as a reference-to-const, but this is not a requirement. For example, if the <code>value</code> type
+  was to be defined as a file stream <code>std::ifstream</code>, then reference-to-const is not possible as the
+  function would not be able to read from the file as the read operation modifies the state of the object.
+</p>
+<p>
+  The function simply loops through the character array (defined by begin/end pointers in the <code>value</code>
+  parameter), defining a <em>word</em> to be a contiguous set of alphabetic characters or an apostrophe. The
+  <em>word</em> is then stored as an intermediate <code>key</code> with a <code>value</code> of <code>1</code>,
+  by calling the <code>emit_intermediate()</code> function of the <code>runtime</code> parameter object.
+</p>
+<pre>
+struct map_task : public boost::mapreduce::map_task&lt;
+                             std::string,                            // MapKey
+                             std::pair&lt;char const *, char const *&gt; &gt; // MapValue
+{
+    template&lt;typename Runtime&gt;
+    void operator()(Runtime &runtime, std::string const &/*key*/, value_type &value) const
+    {
+        bool in_word = false;
+        char const *ptr = value.first;
+        char const *end = value.second;
+        char const *word = ptr;
+        for (; ptr != end; ++ptr)
+        {
+            char const ch = std::toupper(*ptr);
+            if (in_word)
+            {
+                if ((ch < 'A' || ch > 'Z') && ch != '\'')
+                {
+                    runtime.emit_intermediate(std::string(word,ptr-word), 1);
+                    in_word = false;
+                }
+            }
+            else
+            {
+                if (ch >= 'A'  &&  ch <= 'Z')
+                {
+                    word = ptr;
+                    in_word = true;
+                }
+            }
+        }
+        if (in_word)
+        {
+            BOOST_ASSERT(ptr-word > 0);
+            runtime.emit_intermediate(std::string(word,ptr-word), 1);
+        }
+    }
+};
+</pre>
+
+<h2>ReduceTask</h2>
+<p>
+  The ReduceTask will be implemented by a function-object <code>wordcount::reduce_task</code>. This
+  functor is derived from the library's <code>reduce_task</code> class which takes two template
+  parameters to define the <code>key</code> and <code>value</code> types output of the reduce task.
+</p>
+<p>
+  The reduce function operator takes four parameters; the <code>runtime</code> object is the library's
+  callback as described above. The second parametrer is the <code>key</code> of the reduce task and the
+  third and fourth parameters are a pair of iterators dictating the range of <code>value</code> objects
+  for the reduce task. In this Word Count example, the <code>key</code> is a text string containing the
+  <em>word</em>, and the iterators contain a list of frequencies for the word. The ReduceTask simply sums
+  the frequencies by calling <code>std::accumulate</code> and stores the final result by calling the
+  <code>emit()</code> function of the <code>job::reduce_task_runner</code> object which was passed to the
+  constructor of the <code>reduce_task</code> object.
+</p>
+<pre>
+struct reduce_task : public boost::mapreduce::reduce_task&lt;std::string, unsigned&gt;
+{
+    template&lt;typename Runtime, typename It&gt;
+    void operator()(Runtime &runtime, std::string const &key, It it, It const ite) const
+    {
+        runtime.emit(key, std::accumulate(it, ite, 0));
+    }
+};
+</pre>
+
+<h2>Type Definitions</h2>
+<p>
+  For convenience, brevity and maintainability, we define a <code>job</code> type for the MapReduce job.
+  This local <code>job</code> type will be an defined in terms of the library's <code>mapreduce::job</code>
+  class with template parameters specific to the Word Count application.
+</p>
+
+<pre>
+typedef
+mapreduce::job&lt;
+  wordcount::map_task,
+  wordcount::reduce_task&gt;
+job;
+</pre>
+<p>The class <code>mapreduce::job</code> actually has six template parameters. The first two must be supplied, the last
+three have default values. The definition above is actually equivalent to</p>
+<pre>
+class boost::mapreduce::job&lt;
+    struct wordcount::map_task,
+    struct wordcount::reduce_task,
+    struct boost::mapreduce::null_combiner,
+    class boost::mapreduce::datasource::directory_iterator&lt;
+        struct wordcount::map_task,
+        class boost::mapreduce::datasource::file_handler&lt;
+            class std::basic_string&lt;
+                char,class std::char_traits&lt;char&gt;,
+                class std::allocator&lt;char&gt; &gt;,
+            struct std::pair&lt;char const *,char const *&gt; &gt; &gt;,
+    class boost::mapreduce::intermediates::in_memory&lt;
+        struct wordcount::map_task,
+        struct wordcount::reduce_task,
+        struct boost::mapreduce::hash_partitioner&gt;,
+    class boost::mapreduce::intermediates::reduce_null_output&lt;
+        struct wordcount::map_task,struct wordcount::reduce_task&gt; &gt;
+</pre>
+
+<h2>Program</h2>
+<p>
+  To run the MapReduce Word Count algorithm, we need a program to set up an
+  environment, run the algorithm and report the results.
+</p>
+<p>
+  The code below shows an example. Note that error handling has been removed for brevity.
+  A <code>datasource</code> object is created to iterate through a directory of files and
+  pass each file into a map task. A <code>mapreduce::specification</code> object is then
+  created. This is used to specify system parameters such a the number of map tasks to run.
+  <em>Note that this is a hint to the MapReduce runtime, and may differ from the actual
+  number of maps that are used.</em> The final supporting object that is created is an
+  instance of <code>mapreduce::results</code>. This structure will be populated by the
+  runtime to provide metrics and timings of the MapReduce job execution.
+</p>
+<p>
+  To run the MapReduce job, call the <code>run</code> function of the <code>job</code> class.
+  There are two variant of <code>run</code>, for coding convenience.
+</p>
+<pre>
+    template&lt;typename SchedulePolicy&gt;
+    void run(specification const &spec, results &result);
+
+    template&lt;typename SchedulePolicy&gt;
+    void run(SchedulePolicy &schedule, specification const &spec, results &result);
+</pre>
+<p>
+  Both overloads of <code>run()</code> are template functions where the template parameter
+  is a <code>SchedulePolicy</code>. The first variant will default construct a schedule policy
+  class, and the second variant will use the supplied policy class. This enables the library
+  user to develop their own scheduler policies that may need configuration before being used.
+  See <a href='./schedule_policies.html'>Schedule Policies</a> for more information.
+</p>
+
+<p>
+    To reduce the complexity of dealing with the compexity of MapReduce, the library provides a
+    very simple interface to running a system with default values. In this example, we want to
+    run the Job without any specific configuration, so we can use the function
+</p>
+<pre>
+template&lt;typename Job&gt;
+void run(boost::mapreduce::specification &spec, boost::mapreduce::results &result);
+</pre>
+<p>
+    This function will default construct the objects required using the type definitions provide -
+    or defaulted - in the <code>job</code> definition. The user-defined program is therefore very
+    simple, with all the generic complexity being handled by the library:
+</p>
+
+<pre>
+int main(int argc, char **argv)
+{
+    std::cout &lt;&lt; "MapReduce Wordcount Application";
+    if (argc &lt; 2)
+    {
+        std::cerr &lt;&lt; "Usage: wordcount directory [num_map_tasks]\n";
+        return 1;
+    }
+
+    boost::mapreduce::specification spec;
+    spec.input_directory = argv[1];
+
+    std::cout &lt;&lt; "\n" &lt;&lt; std::max(1,(int)boost::thread::hardware_concurrency()) &lt;&lt; " CPU cores";
+    std::cout &lt;&lt; "\n" &lt;&lt; typeid(wordcount::job).name() &lt;&lt; "\n";
+
+    boost::mapreduce::results result;
+    wordcount::job::datasource_type datasource(spec);
+    try
+    {
+        if (argc &gt; 2)
+            spec.map_tasks = atoi(argv[2]);
+
+        if (argc &gt; 3)
+            spec.reduce_tasks = atoi(argv[3]);
+        else
+            spec.reduce_tasks = std::max(1U,boost::thread::hardware_concurrency());
+
+        std::cout &lt;&lt; "\nRunning Parallel WordCount MapReduce...";
+        wordcount::job job(datasource, spec);
+        job.run&lt;boost::mapreduce::schedule_policy::cpu_parallel&lt;wordcount::job&gt; &gt;(result);
+        std::cout &lt;&lt; "\nMapReduce Finished.";
+</pre>
+<p>
+  At the end of the MapReduce job execution, the statistics can be written to the screen.
+</p>
+<pre>
+        std::cout &lt;&lt; std::endl &lt;&lt; "\nMapReduce statistics:";
+        std::cout &lt;&lt; "\n  MapReduce job runtime                     : " &lt;&lt; result.job_runtime &lt;&lt; " seconds, of which...";
+        std::cout &lt;&lt; "\n    Map phase runtime                       : " &lt;&lt; result.map_runtime &lt;&lt; " seconds";
+        std::cout &lt;&lt; "\n    Reduce phase runtime                    : " &lt;&lt; result.reduce_runtime &lt;&lt; " seconds";
+        std::cout &lt;&lt; "\n\n  Map:";
+        std::cout &lt;&lt; "\n    Total Map keys                          : " &lt;&lt; result.counters.map_keys_executed;
+        std::cout &lt;&lt; "\n    Map keys processed                      : " &lt;&lt; result.counters.map_keys_completed;
+        std::cout &lt;&lt; "\n    Map key processing errors               : " &lt;&lt; result.counters.map_key_errors;
+        std::cout &lt;&lt; "\n    Number of Map Tasks run (in parallel)   : " &lt;&lt; result.counters.actual_map_tasks;
+        std::cout &lt;&lt; "\n    Fastest Map key processed in            : " &lt;&lt; *std::min_element(result.map_times.begin(), result.map_times.end()) &lt;&lt; " seconds";
+        std::cout &lt;&lt; "\n    Slowest Map key processed in            : " &lt;&lt; *std::max_element(result.map_times.begin(), result.map_times.end()) &lt;&lt; " seconds";
+        std::cout &lt;&lt; "\n    Average time to process Map keys        : " &lt;&lt; std::accumulate(result.map_times.begin(), result.map_times.end(), boost::posix_time::time_duration()) / result.map_times.size() &lt;&lt; " seconds";
+
+        std::cout &lt;&lt; "\n\n  Reduce:";
+        std::cout &lt;&lt; "\n    Total Reduce keys                       : " &lt;&lt; result.counters.reduce_keys_executed;
+        std::cout &lt;&lt; "\n    Reduce keys processed                   : " &lt;&lt; result.counters.reduce_keys_completed;
+        std::cout &lt;&lt; "\n    Reduce key processing errors            : " &lt;&lt; result.counters.reduce_key_errors;
+        std::cout &lt;&lt; "\n    Number of Reduce Tasks run (in parallel): " &lt;&lt; result.counters.actual_reduce_tasks;
+        std::cout &lt;&lt; "\n    Number of Result Files                  : " &lt;&lt; result.counters.num_result_files;
+        if (result.reduce_times.size() &gt; 0)
+        {
+            std::cout &lt;&lt; "\n    Fastest Reduce key processed in         : " &lt;&lt; *std::min_element(result.reduce_times.begin(), result.reduce_times.end()) &lt;&lt; " seconds";
+            std::cout &lt;&lt; "\n    Slowest Reduce key processed in         : " &lt;&lt; *std::max_element(result.reduce_times.begin(), result.reduce_times.end()) &lt;&lt; " seconds";
+            std::cout &lt;&lt; "\n    Average time to process Reduce keys     : " &lt;&lt; std::accumulate(result.reduce_times.begin(), result.reduce_times.end(), boost::posix_time::time_duration()) / result.map_times.size() &lt;&lt; " seconds";
+        }
+</pre>
+
+<p>and the top 10 words in descending frequency:</p>
+<pre>
+        wordcount::job::const_result_iterator it  = job.begin_results();
+        wordcount::job::const_result_iterator ite = job.end_results();
+        if (it != ite)
+        {
+            typedef std::list&lt;wordcount::job::keyvalue_t&gt; frequencies_t;
+            frequencies_t frequencies;
+            frequencies.push_back(*it);
+            frequencies_t::reverse_iterator it_smallest = frequencies.rbegin();
+            for (++it; it!=ite; ++it)
+            {
+                if (frequencies.size() &lt; 10)    // show top 10
+                {
+                    frequencies.push_back(*it);
+                    if (it-&gt;second &lt; it_smallest-&gt;second)
+                        it_smallest = frequencies.rbegin();
+                }
+                else if (it-&gt;second &gt; it_smallest-&gt;second)
+                {
+                    *it_smallest = *it;
+                    it_smallest = std::min_element(frequencies.rbegin(), frequencies.rend(), boost::mapreduce::detail::less_2nd&lt;wordcount::job::keyvalue_t&gt;);
+                }
+            }
+
+            frequencies.sort(boost::mapreduce::detail::greater_2nd&lt;wordcount::job::keyvalue_t&gt;);
+            std::cout &lt;&lt; "\n\nMapReduce results:";
+            for (frequencies_t::const_iterator freq=frequencies.begin(); freq!=frequencies.end(); ++freq)
+                std::cout &lt;&lt; "\n" &lt;&lt; freq-&gt;first &lt;&lt; "\t" &lt;&lt; freq-&gt;second;
+        }
+</pre>
+
+<h2>Output</h2>
+<p>
+  The wordcount program build using Microsoft Visual Studio 2005 and STLPort. It was run on a sample
+  dataset consists of six plain text files consisting a total of 96 MB (100,628,434 bytes). The
+  smallest file is 163 KB (167,529 bytes) and the largest is 88.1 MB (92,392,601 bytes).
+</p>
+<pre>
+MapReduce Wordcount Application
+2 CPU cores
+class boost::mapreduce::job&lt;struct wordcount::map_task,struct wordcount::reduce_
+task,struct boost::mapreduce::null_combiner,class boost::mapreduce::datasource::
+directory_iterator&lt;struct wordcount::map_task,class boost::mapreduce::datasource
+::file_handler&lt;class stlp_std::basic_string&lt;char,class stlp_std::char_traits&lt;cha
+r&gt;,class stlp_std::allocator&lt;char&gt; &gt;,struct stlp_std::pair&lt;char const *,char con
+st *&gt; &gt; &gt;,class boost::mapreduce::intermediates::in_memory&lt;struct wordcount::map
+_task,struct wordcount::reduce_task,struct boost::mapreduce::hash_partitioner&gt;,c
+lass boost::mapreduce::intermediates::reduce_null_output&lt;struct wordcount::map_t
+ask,struct wordcount::reduce_task&gt; &gt;
+
+Running Parallel WordCount MapReduce...
+MapReduce Finished.
+
+MapReduce statistics:
+  MapReduce job runtime                     : 00:00:23.031250 seconds, of which.
+..
+    Map phase runtime                       : 00:00:20.390625 seconds
+    Reduce phase runtime                    : 00:00:02.640625 seconds
+
+  Map:
+    Total Map keys                          : 100
+    Map keys processed                      : 100
+    Map key processing errors               : 0
+    Number of Map Tasks run (in parallel)   : 2
+    Fastest Map key processed in            : 00:00:00.046875 seconds
+    Slowest Map key processed in            : 00:00:00.531250 seconds
+    Average time to process Map keys        : 00:00:00.406093 seconds
+
+  Reduce:
+    Total Reduce keys                       : 120925
+    Reduce keys processed                   : 120925
+    Reduce key processing errors            : 0
+    Number of Reduce Tasks run (in parallel): 2
+    Number of Result Files                  : 2
+    Fastest Reduce key processed in         : 00:00:02.500000 seconds
+    Slowest Reduce key processed in         : 00:00:02.640625 seconds
+    Average time to process Reduce keys     : 00:00:00.051406 seconds
+
+MapReduce results:
+the     817758
+of      441398
+to      426628
+and     410033
+a       327046
+in      282907
+that    212299
+is      204080
+you     162297
+i       156817
+</pre>
+
+<h2>Adding a Combiner</h2>
+<p>
+  In some circumstances, an optimisation can be made by consolidating the results of
+  the Map phase before they are passed to the Reduce phase. This consolidation is
+  done by a <code>combiner</code> functor.
+</p>
+<p>
+  In the case of the Word Count example, the Map phase will naturally produce list of
+  words, each with a count of 1. The <code>combiner</code> can be used to total the
+  number of each word in the list and produce a shorter list with unique word occurrences.
+</p>
+<pre>
+class combiner
+{
+  public:
+    void start(map_task::intermediate_key_type const &)
+    {
+        total_ = 0;
+    }
+
+    template&lt;typename IntermediateStore&gt;
+    void finish(map_task::intermediate_key_type const &key, IntermediateStore &intermediate_store)
+    {
+        if (total_ > 0)
+            intermediate_store.insert(key, total_);
+    }
+
+    void operator()(map_task::intermediate_value_type const &value)
+    {
+        total_ += value;
+    }
+
+  private:
+    size_t total_;
+};
+</pre>
+
+<p>The <code>combiner</code> runs as a part of the Map Task.</p>
+
+<pre>
+MapReduce Wordcount Application
+2 CPU cores
+class boost::mapreduce::job&lt;struct wordcount::map_task,struct wordcount::reduce_
+task,class wordcount::combiner,class boost::mapreduce::datasource::directory_ite
+rator&lt;struct wordcount::map_task,class boost::mapreduce::datasource::file_handle
+r&lt;class stlp_std::basic_string&lt;char,class stlp_std::char_traits&lt;char&gt;,class stlp
+_std::allocator&lt;char&gt; &gt;,struct stlp_std::pair&lt;char const *,char const *&gt; &gt; &gt;,cla
+ss boost::mapreduce::intermediates::in_memory&lt;struct wordcount::map_task,struct
+wordcount::reduce_task,struct boost::mapreduce::hash_partitioner&gt;,class boost::m
+apreduce::intermediates::reduce_null_output&lt;struct wordcount::map_task,struct wo
+rdcount::reduce_task&gt; &gt;
+
+Running Parallel WordCount MapReduce...
+MapReduce Finished.
+
+MapReduce statistics:
+  MapReduce job runtime                     : 00:00:19 seconds, of which...
+    Map phase runtime                       : 00:00:18.578125 seconds
+    Reduce phase runtime                    : 00:00:00.421875 seconds
+
+  Map:
+    Total Map keys                          : 100
+    Map keys processed                      : 100
+    Map key processing errors               : 0
+    Number of Map Tasks run (in parallel)   : 2
+    Fastest Map key processed in            : 00:00:00.031250 seconds
+    Slowest Map key processed in            : 00:00:00.593750 seconds
+    Average time to process Map keys        : 00:00:00.365468 seconds
+
+  Reduce:
+    Total Reduce keys                       : 120925
+    Reduce keys processed                   : 120925
+    Reduce key processing errors            : 0
+    Number of Reduce Tasks run (in parallel): 2
+    Number of Result Files                  : 2
+    Fastest Reduce key processed in         : 00:00:00.421875 seconds
+    Slowest Reduce key processed in         : 00:00:00.421875 seconds
+    Average time to process Reduce keys     : 00:00:00.008437 seconds
+
+MapReduce results:
+the     817758
+of      441398
+to      426628
+and     410033
+a       327046
+in      282907
+that    212299
+is      204080
+you     162297
+i       156817
+</pre>
+
+<h2>Source Code</h2>
+<p>The full source code for the Word Count example can be found in
+<code>
+    <a href='https://svn.boost.org/svn/boost/sandbox/libs/mapreduce/examples/wordcount/wordcount.cpp'>
+    libs/mapreduce/examples/wordcount/wordcount.cpp
+    </a>
+</code></p>
+
+            </div> 
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="p" href="./tutorial.html"><img src="http://www.boost.org/doc/html/images/prev.png" alt="Prev" /></a>
+        <a accesskey="u" href="./index.html"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+        <a accesskey="n" href="./schedule_policies.html"><img src="http://www.boost.org/doc/html/images/next.png" alt="Next" /></a>
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+      <div id="banners"> 
+        <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer" class="external">XHTML 1.0</a></p> 
+ 
+        <p id="banner-css"><a href=
+        "http://jigsaw.w3.org/css-validator/check/referer" class=
+        "external">CSS</a></p> 
+ 
+        <p id="banner-osi"><a href=
+        "http://www.opensource.org/docs/definition.php" class="external">OSI
+        Certified</a></p> 
+      </div> 
+    </div> 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html> 

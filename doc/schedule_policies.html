@@ -1,0 +1,132 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce Schedule Policies</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+ 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce Schedule Policies</h1> 
+              <em>Note: This library is not yet part of the Boost Library and is still under development and review.</em> 
+            </div> 
+ 
+            <div class="section-body"> 
+            <p>
+              <em>Schedule Policies</em> are used by the MapReduce runtime system to schedule
+              execution of Map and Reduce tasks. The policy is specified in the call to
+              <code>mapreduce::job::run()</code>, which has two variants for coding convenience.
+            </p>
+<pre>
+template&lt;typename SchedulePolicy&gt;
+void run(specification const &spec, results &result);
+
+template&lt;typename SchedulePolicy&gt;
+void run(SchedulePolicy &schedule, specification const &spec, results &result);
+</pre>
+            <p>
+              Both overloads of <code>run()</code> are template functions where the template parameter
+              is a <code>SchedulePolicy</code>. The first variant will default construct a schedule policy
+              class, and the second variant will use the supplied policy class. This enables the library
+              user to develop their own scheduler policies that may need configuration before being used.
+            </p>
+            <p>
+              Boost.MapReduce provides two Schedule Policy implementations in the <code>mapreduce::schedule_policy</code>
+              namespace; <code>sequential</code> and <code>cpu_parallel</code>.
+            </p>
+            <h2>sequential</h2>
+            <p>
+              The <code>sequential</code> schedule policy runs the MapReduce job on the main execution thread,
+              first running a single Map Task followed by a number of Reduce Tasks in sequence. This schedule
+              policy provides a simple MapReduce execution system without any multi-threaded activity. While
+              unlikely to be useful in a production system, it is a very useful policy to aid debugging of a
+              MapReduce-implemented algorithm.
+            </p>
+            <h2>cpu_parallel</h2>
+            <p>
+              The <code>cpu_parallel</code> schedule policy is the main scheduling algorithm for Boost.MapReduce.
+              The class implements a multi-threaded execution of multiple simultaneous Map tasks followed by multiple
+              simultaneous Reduce tasks. Statistics from the individual Map and Reduce tasks are then collated into
+              statistics for the Job as a whole.
+            </p>
+            <p>The <em>Boost.Threads</em> library is used for the multi-threading to ensure portability is maximised.</p>
+            </div> 
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="p" href="./wordcount.html"><img src="http://www.boost.org/doc/html/images/prev.png" alt="Prev" /></a>
+        <a accesskey="u" href="http://www.boost.org/doc/libs"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+        <a accesskey="n" href="./platform.html"><img src="http://www.boost.org/doc/html/images/next.png" alt="Next" /></a> 
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+        <div id="banners"> 
+    <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer"
+    class="external">XHTML 1.0</a></p> 
+ 
+    <p id="banner-css"><a href=
+    "http://jigsaw.w3.org/css-validator/check/referer" class=
+    "external">CSS</a></p> 
+ 
+    <p id="banner-osi"><a href=
+    "http://www.opensource.org/docs/definition.php" class="external">OSI
+    Certified</a></p> 
+  </div> 
+    </div> 
+ 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html> 

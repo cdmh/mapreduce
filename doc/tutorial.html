@@ -1,0 +1,175 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce Tutorial</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+ 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce Tutorial</h1> 
+              <em>Note: This library is not yet part of the Boost Library and is still under development and review.</em> 
+            </div> 
+ 
+            <div class="section-body">
+              <p>This tutorial introduces the concepts and framework for MapReduce programming using the Boost library.
+              Note that it is NOT a tutorial on the MapReduce programming idiom itself. Maybe that will follow one day...</p>
+              <h2>Principles</h2>
+              <p>
+                As a library user, you specify a <em>map</em> function object that processes a key/value pair to generate
+                a set of intermediate key/value pairs, and a <em>reduce</em> function object that merges all intermediate
+                values associated with the same intermediate key. These function objects are call MapTask and ReduceTask
+                respectively.
+              </p>
+<pre>
+map (k1,v1) --&gt; list(k2,v2)
+reduce (k2,list(v2)) --&gt; list(v2)</pre>
+              <h2>MapReduce Job</h2>
+              <p>
+                A single instance of execution in MapReduce is called a Job, and is implemented by <code>boost::mapreduce::job</code>.
+                The simplest definition of a MapReduce Job type just specifies the user-defined MapTask and ReduceTask:</p>
+<pre>typedef
+mapreduce::job&lt;
+  wordcount::map_task,
+  wordcount::reduce_task&gt;
+job;
+</pre>
+              <p>
+                The library's <code>job</code> class provides for more configuration than this, though.
+                <!-- !!! See <a href='./job.html'>Job</a> for more information. -->
+              </p>
+<pre>template&lt;typename MapTask,
+         typename ReduceTask,
+         typename Combiner=null_combiner,
+         typename Datasource=datasource::directory_iterator&lt;MapTask&gt;,
+         typename IntermediateStore=intermediates::local_disk&lt;MapTask&gt; &gt;
+class job;
+</pre>
+              <h2>MapTask</h2>
+              <p>Requirements of a MapTask function object are</p>
+              <ul>
+                <li>Provide type definitions for Map Key (<code>k1</code>) and Map Value (<code>v1</code>);
+                  <code>key_type</code> and <code> value_type</code></li>
+                <li>Implement a function operator <code>operator()()</code></li>
+              </ul>
+<pre>
+struct map_task : public boost::mapreduce::map_task&lt;
+                             std::string,                            // MapKey
+                             std::pair&lt;char const *, char const *&gt; &gt; // MapValue
+{
+    template&lt;typename Runtime&gt;
+    void operator()(Runtime &runtime, std::string const &key, value_type const &value) const;
+};
+</pre>
+<p>The MapTask functor is derived from the <code>boost::mapreduce::map_task</code> to define the
+types required by the Boost.MapReduce library.</p>
+
+<p>The <code>map</code> function is implemented as a template function with the first function parameter
+being a template type <code>Runtime</code>. This parameter is passed by the library to be used as a callback
+to <em>emit</em> intermediate key/value pairs. The other two parameters <code>key</code> and <code>value</code>
+are of types defined in the <code>map_task</code> template parameter list. Note that the <code>const</code>
+qualifiers on these parametersare optional, but recommended where possible.</p>
+
+              <h2>ReduceTask</h2>
+              <p>Requirements of a ReduceTask function object are</p>
+              <ul>
+                <li>Provide type definitions for Reduce Key (<code>k2</code>) and Reduce Value (<code>v2</code>);
+                  <code>key_type</code> and <code> value_type</code></li>
+                <li>Implement a reducer function operator <code>operator()()</code></li>
+              </ul>
+<pre>
+struct reduce_task : public boost::mapreduce::reduce_task&lt;std::string, unsigned&gt;
+{
+    template&lt;typename Runtime, typename It&gt;
+    void operator()(Runtime &runtime, std::string const &key, It it, It const ite) const    
+    {
+        runtime.emit(key, std::accumulate(it, ite, 0));
+    }
+};
+</pre>
+<p>The ReduceTask functor is derived from the <code>boost::mapreduce::reduce_task</code> to define the
+types required by the Boost.MapReduce library.</p>
+<p>The <code>reduce</code> function is implemented as a template function with the first function parameter
+being a template type <code>Runtime</code>, as with the <code>map</code> function above. The second template
+parameter defines an <em>iterator type</em> for function parameters 3 and 4 to bound the <em>list</em> of
+value pairs.</p>
+
+<p>See the <a href='./wordcount.html'>Word Count example</a> for a detailed breakdown of a simple implementation.</p>
+            </div> 
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="p" href="./index.html"><img src="http://www.boost.org/doc/html/images/prev.png" alt="Prev" /></a>
+        <a accesskey="u" href="./index.html"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+        <a accesskey="n" href="./wordcount.html"><img src="http://www.boost.org/doc/html/images/next.png" alt="Next" /></a> 
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+      <div id="banners"> 
+        <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer" class="external">XHTML 1.0</a></p> 
+ 
+        <p id="banner-css"><a href=
+        "http://jigsaw.w3.org/css-validator/check/referer" class=
+        "external">CSS</a></p> 
+ 
+        <p id="banner-osi"><a href=
+        "http://www.opensource.org/docs/definition.php" class="external">OSI
+        Certified</a></p> 
+      </div> 
+    </div> 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html> 

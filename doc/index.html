@@ -1,0 +1,246 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+ 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"> 
+<head> 
+  <title>Boost.MapReduce Documentation</title> 
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+  <link href="http://www.boost.org/favicon.ico" rel="icon" type="http://www.boost.org/image/ico" /> 
+  <link rel="stylesheet" type="text/css" href="http://www.boost.org/style/basic.css" /> 
+</head> 
+ 
+<body> 
+  <div id="heading"> 
+      <div id="heading-placard"></div> 
+ 
+  <h1 id="heading-title"><a href="/"><img src="http://www.boost.org/gfx/space.png" alt=
+  "Boost C++ Libraries" id="heading-logo" /><span id="boost">Boost</span> 
+  <span id="cpplibraries">C++ Libraries</span></a></h1> 
+ 
+  <p id="heading-quote"><span class="quote">&ldquo;...one of the most highly
+  regarded and expertly designed C++ library projects in the
+  world.&rdquo;</span> <span class="attribution">&mdash; <a href=
+  "http://www.gotw.ca/" class="external">Herb Sutter</a> and <a href=
+  "http://en.wikipedia.org/wiki/Andrei_Alexandrescu" class="external">Andrei
+  Alexandrescu</a>, <a href=
+  "http://safari.awprofessional.com/?XmlId=0321113586" class="external">C++
+  Coding Standards</a></span></p> 
+ 
+  </div> 
+ 
+  <div id="body"> 
+    <div id="body-inner"> 
+      <div id="content"> 
+        <div class="section"> 
+          <div class="section-0"> 
+            <div class="section-title"> 
+              <h1>Boost.MapReduce</h1>
+              <p><em>Note: This library is not part of the Boost Library. It has existed in the Boost repository
+              for a number of years where I have developed the library to the point it is today. There was little
+              interest from the Boost community in adopting MapReduce as an official library, so I have moved it
+              from their Subversion repository to <a href='https://github.com/cdmh/mapreduce'>here on GitHub</a>.
+              I hope this will make the project more accessible.</em></p>
+              <p><em>I will update the documentation to remove the Boost branding in due course. The Boost
+              Distribution License is still appropriate for this project existing outside of Boost.</em></p>
+            </div> 
+ 
+            <div class="section-body"> 
+            <p><em>Copyright &copy; 2009 Craig Henderson</em></p>
+            <p>Distributed under the Boost Software License, Version 1.0.<br />(See accompanying file LICENSE_1_0.txt
+            or copy at <a href='http://www.boost.org/LICENSE_1_0.txt' target='_blank'>http://www.boost.org/LICENSE_1_0.txt</a>)</p>
+
+              <h2>Motivation</h2>
+              <p>
+                MapReduce is a programming model and distributed processing platform implementation for generating and
+                processing large data sets using clusters of computers. Pioneered by Google and first presented in 2004,
+                the MapReduce programming model has gained significant momentum in commercial, research and open-source
+                projects since, and Google have updated and republished their seminal paper in 2008.
+              </p>
+              <p>
+                The scalability achieved using MapReduce to implement data processing across a large volume of CPUs, whether
+                on a single server or multiple machines is an attractive proposition. The Boost.MapReduce library is a
+                MapReduce implementation across a plurality of CPU cores rather than machines. The library is implemented
+                as a set of C++ class templates, and is a header-only library. It does, however, depend upon many other
+                Boost libraries, such as Boost.System, Boost.FileSystem and Boost.Thread.
+              </p>
+              <h2>Other Implementations</h2>
+              <p>
+                The Google MapReduce framework is written in C++ and is not made available publically. Hadoop is an Apache
+                project implementation of MapReduce, originally developed as an infrastructure for the Nutch Java Search
+                Engine project. Hadoop is written in Java, with interfaces to a number of programming languages including
+                C++ and Python. This system includes a distributed file system HDFS (Hadoop Distributed File System), which
+                is highly fault-tolerant and designed to be deployed on low-cost hardware. HDFS provides high throughput
+                access to application data and is suitable for applications that have large data sets.
+              </p>
+              <p>
+                Phoenix is a shared-memory implementation of MapReduce. Phoenix can be used to program multi-core chips as
+                well as shared-memory multiprocessors (SMPs and ccNUMAs) and is available from the original authors for the
+                Sun Solaris operating system. A port to the Linux operating system is also available. The Phoenix source code
+                is distributed under a BSD license and the copyright is held by Stanford University.
+              </p>
+              <p>
+                Phoenix runs on a single computer and implements MapReduce across a plurality of CPU cores rather than machines
+                as in the Google and Hadoop implementations. This single-machine restriction simplifies the architecture
+                significantly. In place of the distributed file system, Phoenix uses shared memory model for storing data to be
+                processed, and the results. Each Map or Reduce task runs on a CPU core and the Phoenix runtime is responsible
+                for consolidating results and load balancing (allocating data to Map and Reduce tasks). The complexities of
+                network communication and fault tolerance are not required for the Phoenix framework on a single server.
+              </p>
+              <h1>Change History</h1>
+              <dl class="fields"> 
+                <p>The latest updates can be found in on <a href='https://github.com/cdmh/mapreduce'>GitHub</a>.
+                  I've packaged some snapshot versions into a Zip below; these are in a directory layout
+                  that conforms to the Boost sandbox. The <a href='https://github.com/cdmh/mapreduce'>GitHub</a>
+                  sources are restructured to something more usable outside of a Boost library.</p>
+
+                <dt>29 April 2011</dt>
+                <dd>
+                <dd>
+                  <a href='http://www.craighenderson.co.uk/mapreduce/mapreduce_0_5.zip'>Version 0.5</a>
+                <ul>
+                  <li>Fixed links to downloads that have been removed from the Boost Vault</li>
+                  <li>Clean compilation with Microsoft Visual C++</li>
+                </ul>
+                </dd>
+
+                <dt>29 Aug 2009</dt>
+                <dd>
+                <dd>
+                  Version 0.4
+                <ul>
+                  <li><i>Breaking change</i>: <code>map_task</code> and <code>reduce_task</code> now must implement a
+                    function operator rather than static methods <code>map</code> and <code>reduce</code>. The functor
+                    signatures are the same the the previous static methods.</li>
+                  <li>Fixed iteration in the case where each result key has multiple values</li>
+                </ul>
+                </dd>
+
+                <dt>8 Aug 2009</dt>
+                <dd>
+                  Version 0.3
+                <ul>
+                    <li>Added <code>in_memory</code> intermediate handler for processing smaller dataset that can fit into
+                    main storage and availble the overhead of disk-based temporary storage.</li>
+                    <li>Revised <code>map_task</code> and <code>reduce_task</code> to provide required type defs through
+                    template parameters</li>
+                    <li>Improved library interface</li>
+                    <li>Provided separate Test Program and Example Application</li>
+                    <li>Update documentation</li>
+                </ul></dd>
+
+                <dt>26 Jul 2009</dt>
+                <dd><ul><li>Added parametrised file_handler on the datasource.</li>
+                    <li>Added memory mapped file support as an alternative to to std::ifstream</li>
+                    <li>Added examples directory with wordcount example</li>
+                    <li>Removed test directory</li>
+                    <li>Code clean-up</li></ul>
+                </dd>
+                <dt>23 Jul 2009</dt>
+                <dd>Added to Boost Sandbox (subversion)</dd>
+                <dt>21 Jul 2009</dt>
+                <dd>
+                  Version 0.2
+                  <ul>
+                  <li>Moved the library into the <code>boost</code> namespace.</li>
+                  <li>Created <code>PartitionFn</code> template parameter on <code>intermediates::local_disk</code> to
+                  enable customisation of the partitioning of data into result files.</li>
+                  <li>Use of <code>BOOST_THROW_EXCEPTION</code> in place of <code>throw</code>.</li>
+                  <li>Rationalised and completed include guards</li>
+                  <li>Support for gcc 4.3.3 on Ubuntu Linux</li>
+                  </ul>
+                </dd>
+              </dl>
+              <dl class="fields"> 
+                <dt>19 Jul 2009</dt>
+                <dd>
+                  Version 0.1
+                  <br />
+                  Initial public release on Boost Vault<br />
+                </dd>
+              </dl>
+              <h1>References</h1>
+                <dl class="fields"> 
+                    <dt>Title</dt> 
+                    <dd>MapReduce: Simplified Data Processing on Large Clusters</dd> 
+                    <dt>Author(s)</dt> 
+                    <dd>Jeffrey Dean and Sanjay Ghemawat</dd> 
+                    <dt>Appeared in</dt> 
+                    <dd>OSDI'04: Sixth Symposium on Operating System Design and Implementation, San Francisco, CA, December, 2004.</dd>
+                    <dt>URL</dt>
+                    <dd><a target="_blank" href='http://labs.google.com/papers/mapreduce.html'>http://labs.google.com/papers/mapreduce.html</a></dd>
+                </dl> 
+
+                <dl class="fields"> 
+                    <dt>Title</dt> 
+                    <dd>MapReduce: Simplified Data Processing on Large Clusters</dd> 
+                    <dt>Author(s)</dt> 
+                    <dd>Jeffrey Dean and Sanjay Ghemawat</dd> 
+                    <dt>Appeared in</dt> 
+                    <dd>Communications of the ACM 51(1) January 2008</dd>
+                    <dt>URL</dt>
+                    <dd><a target="_blank" href='http://portal.acm.org/citation.cfm?id=1327492'>http://portal.acm.org/citation.cfm?id=1327492</a></dd>
+                </dl> 
+
+
+                <dl class="fields"> 
+                    <dt>Title</dt> 
+                    <dd>Evaluating MapReduce for Multi-core and Multiprocessor Systems</dd> 
+                    <dt>Author(s)</dt> 
+                    <dd>Ranger, C., Raghuraman, R., Penmetsa, A., Bradski, G., & Kozyrakis, C.</dd> 
+                    <dt>Appeared in</dt> 
+                    <dd>Proceedings of the 13th Intl. Symposium on High-Performance Computer Architecture (HPCA). Phoenix, AZ.</dd>
+                    <dt>URL</dt>
+                    <dd><a target="_blank" href='http://mapreduce.stanford.edu/'>http://mapreduce.stanford.edu/</a></dd>
+                </dl> 
+            </div> 
+          </div> 
+        </div> 
+      </div> 
+      <div id="sidebar"> 
+        <a accesskey="u" href="http://www.boost.org/doc/libs"><img src="http://www.boost.org/doc/html/images/up.png" alt="Up" /></a>
+        <a accesskey="h" href="http://www.boost.org/"><img src="http://www.boost.org/doc/html/images/home.png" alt="Home" /></a>
+        <a accesskey="n" href="./tutorial.html"><img src="http://www.boost.org/doc/html/images/next.png" alt="Next" /></a> 
+
+        <hr />
+        <p><a href='./index.html'>Boost.MapReduce</a></p>
+        <p><a href='./tutorial.html'>Tutorial</a></p>
+        <p><a href='./wordcount.html'>Example</a></p>
+        <hr />
+        <p><a href='./schedule_policies.html'>Schedule Policies</a></p>
+        <p><a href='./platform.html'>Platform Notes</a></p>
+        <p><a href='./future.html'>Future Work</a></p>
+      </div>
+      <div class="clear"></div> 
+    </div> 
+  </div> 
+ 
+  <div id="footer"> 
+    <div id="footer-left"> 
+ 
+      <div id="copyright"> 
+        <p>Copyright (C) 2009 Craig Henderson.</p> 
+       </div>  <div id="license"> 
+    <p>Distributed under the <a href="/LICENSE_1_0.txt" class=
+    "internal">Boost Software License, Version 1.0</a>.</p> 
+  </div> 
+    </div> 
+ 
+    <div id="footer-right"> 
+        <div id="banners"> 
+    <p id="banner-xhtml"><a href="http://validator.w3.org/check?uri=referer"
+    class="external">XHTML 1.0</a></p> 
+ 
+    <p id="banner-css"><a href=
+    "http://jigsaw.w3.org/css-validator/check/referer" class=
+    "external">CSS</a></p> 
+ 
+    <p id="banner-osi"><a href=
+    "http://www.opensource.org/docs/definition.php" class="external">OSI
+    Certified</a></p> 
+  </div> 
+    </div> 
+ 
+    <div class="clear"></div> 
+  </div> 
+</body> 
+</html>
