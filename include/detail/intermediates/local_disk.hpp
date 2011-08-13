@@ -1,13 +1,13 @@
-// MapReduce library
+// Boost.MapReduce library
 //
 //  Copyright (C) 2009 Craig Henderson.
-//  cdm.henderson@gmail.com
+//  cdm.henderson@googlemail.com
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
-// For more information, see http://craighenderson.co.uk/mapreduce/
+// For more information, see http://www.boost.org/libs/mapreduce/
 //
  
 #ifndef MAPREDUCE_LOCAL_DISK_INTERMEDIATES_HPP
@@ -25,66 +25,117 @@ struct null_combiner;
 
 namespace detail {
 
+struct file_lines_comp
+{
+    template<typename T>
+    bool const operator()(T const &first, T const &second)
+    {
+        return first.second < second.second;
+    }
+};
+
+template<typename Record>
 struct file_merger
 {
     template<typename List>
-    void operator()(List const &filenames, char const *dest)
+    void operator()(List const &filenames, std::string const &dest)
     {
-        buffer_.reset(new char[buffer_size_]);
+        std::ofstream outfile(dest.c_str(), std::ios_base::out | std::ios_base::binary);
 
-        std::ofstream outfile(dest, std::ios_base::in | std::ios_base::binary);
-        for (typename List::const_iterator it=filenames.begin(); it!=filenames.end(); ++it)
-            copy_file(*it, outfile);
-    }
+        std::list<std::string> files, delete_files;
+        std::copy(filenames.begin(), filenames.end(), std::back_inserter(files));
+        std::copy(filenames.begin(), filenames.end(), std::back_inserter(delete_files));
 
-  private:
-    void copy_file(std::string const &filename, std::ofstream &outfile)
-    {
-        boost::uint64_t remaining = boost::filesystem::file_size(filename);
-
-        std::ifstream infile(filename.c_str(), std::ios_base::in | std::ios_base::binary);
-        if (!infile.is_open())
+        while (files.size() > 0)
         {
-            std::ostringstream err;
-            err << "Failed to open file: " << filename;
-            BOOST_THROW_EXCEPTION(std::runtime_error(err.str()));
-        }
-
-        std::streamsize read_write_size = buffer_size_;
-        while (remaining > 0)
-        {
-            if (remaining < (boost::uint64_t)read_write_size)
-                read_write_size = (std::streamsize)remaining;
-
-            infile.read(buffer_.get(), read_write_size);
-            if (infile.bad()  ||  infile.fail())
+            typedef std::list<std::pair<boost::shared_ptr<std::ifstream>, Record> > file_lines_t;
+            file_lines_t file_lines;
+            while (files.size() > 0)
             {
-                std::ostringstream err;
-                err << "Error reading file " << filename;
-                BOOST_THROW_EXCEPTION(std::runtime_error(err.str()));
+                boost::shared_ptr<std::ifstream> file(new std::ifstream(files.front().c_str(), std::ios_base::in | std::ios_base::binary));
+                if (!file->is_open())
+                    break;
+
+                files.pop_front();
+
+                std::string line;
+                std::getline(*file, line, '\r');
+
+                Record record;
+                std::istringstream l(line);
+                l >> record;
+                file_lines.push_back(std::make_pair(file, record));
             }
 
-            outfile.write(buffer_.get(), read_write_size);
-            if (outfile.bad()  ||  outfile.fail())
+            while (file_lines.size() > 0)
             {
-                std::ostringstream err;
-                err << "Error writing to file";
-                BOOST_THROW_EXCEPTION(std::runtime_error(err.str()));
+                typename file_lines_t::iterator it;
+                if (file_lines.size() == 1)
+                    it = file_lines.begin();
+                else
+                    it = std::min_element(file_lines.begin(), file_lines.end(), file_lines_comp());
+
+                Record record = it->second;
+                while (it != file_lines.end())
+                {
+                    if (it->second == record)
+                    {
+                        outfile << it->second << "\r";
+
+                        std::string line;
+                        std::getline(*it->first, line, '\r');
+
+                        if (line.length() > 0)
+                        {
+                            std::istringstream l(line);
+                            l >> it->second;
+                        }
+
+                        if (it->first->eof())
+                        {
+                            typename file_lines_t::iterator it1 = it++;
+                            file_lines.erase(it1);
+                        }
+                        else
+                            ++it;
+                    }
+                    else
+                        ++it;
+                }
             }
 
-            remaining -= read_write_size;
-        }
-    }
+            // subsequent times around the loop need to merge with outfilename
+            // from previous iteration. to do this, rename the output file to
+            // a temporary filename and add it to the list of files to merge.
+            // then re-open the destination file
+            if (files.size() > 0)
+            {
+                outfile.close();
 
-    std::auto_ptr<char> buffer_;
-    static unsigned const buffer_size_ = 1048576;
+                std::string const temp_filename = platform::get_temporary_filename();
+                delete_file(temp_filename);
+                boost::filesystem::rename(dest, temp_filename);
+                delete_files.push_back(temp_filename);
+
+                files.push_back(temp_filename);
+                outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
+            }
+        }
+
+        // delete fragment files
+        std::for_each(
+            delete_files.begin(),
+            delete_files.end(),
+            boost::bind(detail::delete_file, _1));
+    }
 };
 
+template<typename Record>
 struct file_sorter
 {
-    bool const operator()(char const *in, char const *out, unsigned const offset) const
+    bool const operator()(char const *in, char const *out) const
     {
-        return mapreduce::merge_sort(in, out, offset);
+        return mapreduce::merge_sort<Record>(in, out);
     }
 };
 
@@ -103,13 +154,13 @@ class reduce_file_output
         std::ostringstream filename;
         filename << output_filespec << partition+1 << "_of_" << num_partitions;
         filename_ = filename.str();
-        output_file_.open(filename_.c_str());
+        output_file_.open(filename_.c_str(), std::ios_base::binary);
     }
 
     void operator()(typename ReduceTask::key_type   const &key,
                     typename ReduceTask::value_type const &value)
     {
-        output_file_ << key << "\t" << value << "\n";
+        output_file_ << key << "\t" << value << "\r";
     }
 
   private:
@@ -122,23 +173,132 @@ template<
     typename MapTask,
     typename ReduceTask,
     typename PartitionFn=mapreduce::hash_partitioner,
-    typename SortFn=mapreduce::detail::file_sorter,
-    typename MergeFn=mapreduce::detail::file_merger>
+    typename SortFn=mapreduce::detail::file_sorter<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
+    typename MergeFn=mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
 class local_disk : boost::noncopyable
 {
   private:
+    struct intermediate_file_info
+    {
+        intermediate_file_info()
+        {
+        }
+
+        intermediate_file_info(std::string const &fname)
+          : filename(fname)
+        {
+        }
+
+        struct kv_file : public std::ofstream
+        {
+            kv_file() : sorted_(true)
+            {
+            }
+
+            ~kv_file()
+            {
+                close();
+            }
+
+            void open(std::string const &filename)
+            {
+                assert(records_.empty());
+                use_cache_ = true;
+                std::ofstream::open(filename.c_str(), std::ios_base::binary);
+            }
+
+            void close(void)
+            {
+                if (is_open())
+                {
+                    flush_cache();
+                    std::ofstream::close();
+                }
+            }
+
+            bool const sorted(void) const
+            {
+                return sorted_;
+            }
+
+            bool const write(typename ReduceTask::key_type   const &key,
+                             typename ReduceTask::value_type const &value)
+            {
+                if (use_cache_)
+                {
+                    ++records_.insert(std::make_pair(std::make_pair(key,value),0U)).first->second;
+                    return true;
+                }
+
+                sorted_ = false;
+                return write(key, value, 1);
+            }
+
+          protected:
+            bool const write(typename ReduceTask::key_type   const &key,
+                             typename ReduceTask::value_type const &value,
+                             unsigned                        const count)
+            {
+                std::ostringstream linebuf;
+                linebuf << key.length() << "\t" << key << "\t" << value << "\r";
+
+                std::string line(linebuf.str());
+                for (unsigned loop=0; loop<count; ++loop)
+                {
+                    *this << line;
+                    if (bad()  ||  fail())
+                        return false;
+                }
+                return true;
+            }
+
+            bool const flush_cache(void)
+            {
+                use_cache_ = false;
+                for (records_t::const_iterator it  = records_.begin(); it != records_.end(); ++it)
+                {
+                    if (!write(it->first.first, it->first.second, it->second))
+                        return false;
+                }
+
+                records_.clear();
+                return true;
+            }
+
+          private:
+            typedef
+            std::pair<typename ReduceTask::key_type,
+                      typename ReduceTask::value_type>
+            record_t;
+
+            typedef
+            std::map<record_t, unsigned>
+            records_t;
+
+            bool      sorted_;
+            bool      use_cache_;
+            records_t records_;
+        };
+
+        std::string             filename;
+        kv_file                 write_stream;
+        std::list<std::string>  fragment_filenames;
+    };
+
     typedef
     std::map<
-        size_t,                                     // hash value of intermediate key (R)
-        std::pair<
-            std::string,                            // filename
-            boost::shared_ptr<std::ofstream> > >    // file stream
+        size_t, // hash value of intermediate key (R)
+        boost::shared_ptr<intermediate_file_info> >
     intermediates_t;
 
   public:
     typedef MapTask    map_task_type;
     typedef ReduceTask reduce_task_type;
-    typedef reduce_file_output<MapTask, ReduceTask> store_result_type;
+
+    typedef
+    reduce_file_output<MapTask, ReduceTask>
+    store_result_type;
+
     typedef
     std::pair<
         typename reduce_task_type::key_type,
@@ -180,10 +340,21 @@ class local_disk : boost::noncopyable
         {
             for (unsigned loop=0; loop<outer_->num_partitions_; ++loop)
             {
-                kvlist_[loop] = std::make_pair(boost::shared_ptr<std::ifstream>(new std::ifstream), keyvalue_t());
-                kvlist_[loop].first->open(outer_->intermediate_files_.find(loop)->second.first.c_str());
+                kvlist_[loop] =
+                    std::make_pair(
+                        boost::shared_ptr<std::ifstream>(
+                            new std::ifstream),
+                            keyvalue_t());
+
+                kvlist_[loop].first->open(
+                    outer_->intermediate_files_.find(loop)->second->filename.c_str(),
+                    std::ios_base::binary);
+
                 BOOST_ASSERT(kvlist_[loop].first->is_open());
-                read_record(*kvlist_[loop].first, kvlist_[loop].second.first, kvlist_[loop].second.second);
+                read_record(
+                    *kvlist_[loop].first,
+                    kvlist_[loop].second.first,
+                    kvlist_[loop].second.second);
             }
             set_current();
             return *this;
@@ -244,8 +415,16 @@ class local_disk : boost::noncopyable
             this->close_files();
 
             // delete the temporary files
-            for (intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
-                boost::filesystem::remove(it->second.first);
+            for (intermediates_t::iterator it=intermediate_files_.begin();
+                 it!=intermediate_files_.end();
+                 ++it)
+            {
+                detail::delete_file(it->second->filename);
+                std::for_each(
+                    it->second->fragment_filenames.begin(),
+                    it->second->fragment_filenames.end(),
+                    boost::bind(detail::delete_file, _1));
+            }
         }
         catch (std::exception const &e)
         {
@@ -277,27 +456,32 @@ class local_disk : boost::noncopyable
     {
         unsigned const partition = partitioner_(key, num_partitions_);
 
-        intermediates_t::iterator it =
-            intermediate_files_.insert(
-                make_pair(
-                    partition,
-                    intermediates_t::mapped_type())).first;
-
-        if (it->second.first.empty())
+        intermediates_t::iterator it = intermediate_files_.find(partition);
+        if (it == intermediate_files_.end())
         {
-            it->second.first = platform::get_temporary_filename();
-            it->second.second.reset(new std::ofstream);
+            it = intermediate_files_.insert(
+                    std::make_pair(
+                        partition,
+                        boost::shared_ptr<intermediate_file_info>(
+                            new intermediate_file_info))).first;
         }
 
-        if (!it->second.second->is_open())
-            it->second.second->open(it->second.first.c_str(), std::ios_base::out | std::ios_base::app);
-        assert(it->second.second->is_open());
+        if (it->second->filename.empty())
+        {
+            it->second->filename = platform::get_temporary_filename();
+            assert(!it->second->write_stream.is_open());
+        }
 
-        std::ostringstream key_text_stream;
-        key_text_stream << key;
-        std::string key_text(key_text_stream.str());
-        *it->second.second << std::setw(10) << key_text.length() << "\t" << key << "\t" << value << "\n";
-        return !(it->second.second->bad()  ||  it->second.second->fail());
+        if (!it->second->write_stream.is_open())
+            it->second->write_stream.open(it->second->filename);
+        assert(it->second->write_stream.is_open());
+        return it->second->write_stream.write(key, value);
+    }
+
+    template<typename T>
+    size_t const length(T const &value)
+    {
+        return value.length();
     }
 
     template<typename FnObj>
@@ -306,24 +490,24 @@ class local_disk : boost::noncopyable
         this->close_files();
         for (intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
         {
-            std::string infilename  = it->second.first;
+            std::string infilename  = it->second->filename;
             std::string outfilename = platform::get_temporary_filename();
 
             // sort the input file
-            SortFn()(infilename.c_str(), outfilename.c_str(), 11);
-            boost::filesystem::remove(infilename);
+            sort_fn_(infilename.c_str(), outfilename.c_str());
+            detail::delete_file(infilename);
             std::swap(infilename, outfilename);
 
-            std::string key, last_key;
+            reduce_task_type::key_type key, last_key;
             typename reduce_task_type::value_type value;
             std::ifstream infile(infilename.c_str());
             while (read_record(infile, key, value))
             {
-                if (key != last_key  &&  key.length() > 0)
+                if (key != last_key  &&  length(key) > 0)
                 {
-                    if (last_key.length() > 0)
+                    if (length(last_key) > 0)
                         fn_obj.finish(last_key, *this);
-                    if (key.length() > 0)
+                    if (length(key) > 0)
                     {
                         fn_obj.start(key);
                         std::swap(key, last_key);
@@ -333,12 +517,12 @@ class local_disk : boost::noncopyable
                 fn_obj(value);
             }
 
-            if (last_key.length() > 0)
+            if (length(last_key) > 0)
                 fn_obj.finish(last_key, *this);
 
             infile.close();
 
-            boost::filesystem::remove(infilename);
+            detail::delete_file(infilename);
         }
 
         this->close_files();
@@ -352,78 +536,94 @@ class local_disk : boost::noncopyable
     void merge_from(local_disk &other)
     {
         BOOST_ASSERT(num_partitions_ == other.num_partitions_);
-
         for (unsigned partition=0; partition<num_partitions_; ++partition)
         {
             intermediates_t::iterator ito = other.intermediate_files_.find(partition);
-            BOOST_ASSERT(ito != other.intermediate_files_.end());
+            if (ito != other.intermediate_files_.end())
+            {
+                intermediates_t::iterator it = intermediate_files_.find(partition);
+                if (it == intermediate_files_.end())
+                {
+                    it = intermediate_files_.insert(
+                            std::make_pair(
+                                partition,
+                                boost::shared_ptr<intermediate_file_info>(
+                                    new intermediate_file_info))).first;
+                }
 
-            intermediates_t::iterator it = intermediate_files_.find(partition);
-            if (it == intermediate_files_.end())
-            {
-                intermediate_files_.insert(
-                    make_pair(
-                        partition,
-                        std::make_pair(
-                            ito->second.first,
-                            boost::shared_ptr<std::ofstream>(new std::ofstream))));
+                ito->second->write_stream.close();
+                if (ito->second->write_stream.sorted())
+                {
+                    it->second->fragment_filenames.push_back(ito->second->filename);
+                    ito->second->filename.clear();
+                }
+                else
+                {
+                    std::string const sorted = platform::get_temporary_filename();
+                    sort_fn_(ito->second->filename.c_str(), sorted.c_str());
+                    it->second->fragment_filenames.push_back(sorted);
+                }
+                assert(ito->second->fragment_filenames.empty());
             }
-            else
-            {
-                std::list<std::string> filenames;
-                filenames.push_back(it->second.first);
-                filenames.push_back(ito->second.first);
-                it->second.first = merge_and_sort(filenames);
-                it->second.second->close();
-            }
-            other.intermediate_files_.erase(partition);
+        }
+    }
+
+    void run_intermediate_results_shuffle(unsigned const partition)
+    {
+/*!!!*/ std::cout << "\nIntermediate Results Shuffle, Partition " << partition << "...";
+        intermediates_t::iterator it = intermediate_files_.find(partition);
+        assert(it != intermediate_files_.end());
+        it->second->write_stream.close();
+        if (!it->second->fragment_filenames.empty())
+        {
+            it->second->filename = platform::get_temporary_filename();
+            merge_fn_(it->second->fragment_filenames, it->second->filename);
         }
     }
 
     template<typename Callback>
     void reduce(unsigned const partition, Callback &callback)
     {
+/*!!!*/ std::cout << "\nReduce Phase running for partition " << partition << "...";
+
         intermediates_t::iterator it = intermediate_files_.find(partition);
         BOOST_ASSERT(it != intermediate_files_.end());
 
         std::string filename;
-        std::swap(filename, it->second.first);
+        std::swap(filename, it->second->filename);
+        it->second->write_stream.close();
         intermediate_files_.erase(it);
 
-        typename reduce_task_type::key_type   key;
+        std::pair<
+            typename reduce_task_type::key_type,
+            typename reduce_task_type::value_type> kv;
         typename reduce_task_type::key_type   last_key;
-        typename reduce_task_type::value_type value;
         std::list<typename reduce_task_type::value_type> values;
         std::ifstream infile(filename.c_str());
-        while (read_record(infile, key, value))
+        while (!(infile >> kv).eof())
         {
-            if (key != last_key  &&  length(key) > 0)
+            if (kv.first != last_key  &&  length(kv.first) > 0)
             {
                 if (length(last_key) > 0)
                 {
                     callback(last_key, values.begin(), values.end());
                     values.clear();
                 }
-                if (length(key) > 0)
-                    std::swap(key, last_key);
+                if (length(kv.first) > 0)
+                    std::swap(kv.first, last_key);
             }
 
-            values.push_back(value);
+            values.push_back(kv.second);
         }
 
         if (length(last_key) > 0)
-        {
             callback(last_key, values.begin(), values.end());
-        }
 
         infile.close();
-        boost::filesystem::remove(filename.c_str());
-
-        intermediate_files_.find(partition)->second.second->close();
+        detail::delete_file(filename.c_str());
     }
 
-  protected:
-    static bool const read_record(std::ifstream &infile,
+    static bool const read_record(std::istream &infile,
                                   typename reduce_task_type::key_type   &key,
                                   typename reduce_task_type::value_type &value)
     {
@@ -447,35 +647,11 @@ class local_disk : boost::noncopyable
         return true;
     }
 
-    template<typename List>
-    static std::string merge_and_sort(List const &filenames)
-    {
-        assert(filenames.size() > 0);
-
-        // first merge
-        std::string const temp = platform::get_temporary_filename();
-        MergeFn()(filenames, temp.c_str());
-
-        // then sort
-        typename List::const_iterator it=filenames.begin();
-        SortFn()(temp.c_str(), it->c_str(), 11);
-
-        // delete merge source files
-        boost::filesystem::remove(temp);
-        std::for_each(++it, filenames.end(), boost::bind(detail::delete_file, _1));
-
-        // return the resulting filename
-        return *filenames.begin();
-    }
-
   private:
     void close_files(void)
     {
         for (intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
-        {
-            if (it->second.second  &&  it->second.second->is_open())
-                it->second.second->close();
-        }
+            it->second->write_stream.close();
     }
 
   private:
@@ -483,6 +659,8 @@ class local_disk : boost::noncopyable
 
     unsigned const  num_partitions_;
     intermediates_t intermediate_files_;
+    SortFn          sort_fn_;
+    MergeFn         merge_fn_;
     PartitionFn     partitioner_;
 };
 

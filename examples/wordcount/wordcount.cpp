@@ -159,7 +159,7 @@ bool operator==(wordcount::reduce_key_t const &first, wordcount::reduce_key_t co
 
 namespace mapreduce {
 template<>
-size_t const hash_partitioner::operator()(wordcount::reduce_key_t const &key, unsigned partitions) const
+unsigned const hash_partitioner::operator()(wordcount::reduce_key_t const &key, unsigned partitions) const
 {
     return boost::hash_range(key.first, key.first+key.second) % partitions;
 }

@@ -14,7 +14,7 @@
 #define WORD_COUNT_MEMORY_MAP_FILE
 
 #if defined(_DEBUG)
-#   if 0
+#   if 1
 #       define RUN_SEQUENTIAL_MAP_REDUCE
 #   endif
 #else
@@ -213,6 +213,7 @@ void run_test(mapreduce::specification spec)
         spec.map_tasks = 1;
         spec.reduce_tasks = 1;
 
+        typename Job::datasource_type datasource(spec);
         Job job(datasource, spec);
         job.template run<mapreduce::schedule_policy::sequential<Job> >(result);
         std::cout << "\nSequential MapReduce Finished.";
@@ -290,25 +291,19 @@ void run_test(mapreduce::specification spec)
     }
 }
 
-//typedef
-//mapreduce::job<
-//    wordcount::map_task_type
-//  , wordcount::reduce_task
-//#ifdef USE_WORDCOUNT_COMBINER
-//  , wordcount::combiner<wordcount::reduce_task>
-//#else
-//  , mapreduce::null_combiner
-//#endif
-//  , mapreduce::datasource::directory_iterator<wordcount::map_task_type>
-//#ifdef USE_IN_MEMORY_INTERMEDIATES
-//  , mapreduce::intermediates::in_memory<wordcount::map_task_type, wordcount::reduce_task>
-//#else
-//  , mapreduce::intermediates::local_disk<wordcount::map_task_type, wordcount::reduce_task>
-//#endif
-//#if defined(USE_IN_MEMORY_INTERMEDIATES)  &&  defined(WRITE_OUTPUT_FILES)
-//  , mapreduce::intermediates::reduce_file_output<wordcount::map_task_type, wordcount::reduce_task>
-//#endif
-//> job;
+std::istream &operator>>(std::istream &infile, std::pair<wordcount::reduce_task::key_type, wordcount::reduce_task::value_type> &kv_pair)
+{
+    mapreduce::intermediates::local_disk<
+        wordcount::map_task_type,
+        wordcount::reduce_task>::read_record(infile, kv_pair.first, kv_pair.second);
+    return infile;
+}
+
+std::ostream &operator<<(std::ostream &o, std::pair<wordcount::reduce_task::key_type, wordcount::reduce_task::value_type> const &kv_pair)
+{
+    o << kv_pair.first.length() << "\t" << kv_pair.first << "\t" << kv_pair.second;
+    return o;
+}
 
 int main(int argc, char **argv)
 {
@@ -337,6 +332,7 @@ int main(int argc, char **argv)
         spec.reduce_tasks = std::max(1U,boost::thread::hardware_concurrency());
 
     std::cout << "\n" << std::max(1,(int)boost::thread::hardware_concurrency()) << " CPU cores";
+
     run_test<
         mapreduce::job<
             wordcount::map_task_type
