@@ -210,7 +210,7 @@ bool const merge_sort(char     const *in,
         std::string const temp_filename(platform::get_temporary_filename());
         temporary_files.push_back(temp_filename);
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
-        for (lines_t::const_iterator it=lines.begin(); it!=lines.end(); ++it)
+        for (typename lines_t::const_iterator it=lines.begin(); it!=lines.end(); ++it)
         {
             if (file.fail()  ||  file.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
