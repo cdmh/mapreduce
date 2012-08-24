@@ -185,24 +185,24 @@ class directory_iterator : boost::noncopyable
       : specification_(spec),
         file_handler_(spec)
     {
-        it_dir_ = boost::filesystem::basic_directory_iterator<path_t>(specification_.input_directory);
+        it_dir_ = boost::filesystem::directory_iterator(specification_.input_directory);
     }
 
     bool const setup_key(typename MapTask::key_type &key) const
     {
         if (!file_handler_.setup_key(key))
         {
-            while (it_dir_ != boost::filesystem::basic_directory_iterator<path_t>()
+            while (it_dir_ != boost::filesystem::directory_iterator()
                 && boost::filesystem::is_directory(*it_dir_))
             {
                 ++it_dir_;
             }
 
-            if (it_dir_ == boost::filesystem::basic_directory_iterator<path_t>())
+            if (it_dir_ == boost::filesystem::directory_iterator())
                 return false;
 
             path_t path = *it_dir_++;
-            key = path.external_file_string();
+            key = path.native();
         }
         return true;
     }
@@ -213,11 +213,12 @@ class directory_iterator : boost::noncopyable
     }
 
   private:
-    typedef
-    boost::filesystem::basic_path<std::string, boost::filesystem::path_traits>
-    path_t;
+    //typedef
+    //boost::filesystem::basic_path<std::string, boost::filesystem::path_traits>
+    //path_t;
+    typedef boost::filesystem::path path_t;
 
-    mutable boost::filesystem::basic_directory_iterator<path_t> it_dir_;
+    mutable boost::filesystem::directory_iterator it_dir_;
     std::string                     directory_;
     mapreduce::specification const &specification_;
     FileHandler                     file_handler_;
