@@ -213,10 +213,9 @@ class directory_iterator : boost::noncopyable
     }
 
   private:
-    //typedef
-    //boost::filesystem::basic_path<std::string, boost::filesystem::path_traits>
-    //path_t;
-    typedef boost::filesystem::path path_t;
+    typedef
+        boost::filesystem::path
+        path_t;
 
     mutable boost::filesystem::directory_iterator it_dir_;
     std::string                     directory_;
