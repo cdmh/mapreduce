@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{020c9251-91f5-477f-a97c-94b2af571a49}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\mapreduce">
+      <UniqueIdentifier>{0e07f311-c6c0-4d04-a47a-4a721e5d7a17}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\mapreduce\intermediates">
+      <UniqueIdentifier>{4ab6e72b-9079-44f3-9803-b11ffdbbb6ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\mapreduce\schedule_policy">
+      <UniqueIdentifier>{b5a6754b-756f-4d64-84fd-052623d611a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\mapreduce.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\datasource.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\hash_partitioner.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\intermediates.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\job.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\mergesort.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\null_combiner.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\platform.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\schedule_policy.hpp">
+      <Filter>Header Files\mapreduce</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\intermediates\in_memory.hpp">
+      <Filter>Header Files\mapreduce\intermediates</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\intermediates\local_disk.hpp">
+      <Filter>Header Files\mapreduce\intermediates</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\schedule_policy\cpu_parallel.hpp">
+      <Filter>Header Files\mapreduce\schedule_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="include\detail\schedule_policy\sequential.hpp">
+      <Filter>Header Files\mapreduce\schedule_policy</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
