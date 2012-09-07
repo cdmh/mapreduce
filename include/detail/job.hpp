@@ -1,7 +1,7 @@
 /*
     MapReduce library
 
-    Copyright (C) 2009 Craig Henderson.
+    Copyright (C) 2009,2010,2011,2012 Craig Henderson.
     cdm.henderson@gmail.com
 
     Use, modification and distribution is subject to the
@@ -237,7 +237,7 @@ class job : private boost::noncopyable
                 return false;
             }
 
-/*!!!*/ std::cout << "\nRunning map task " << map_key;
+            std::cout << "\nRunning map task " << map_key;
             map_task_runner runner(*this);
             runner(map_key, value);
 

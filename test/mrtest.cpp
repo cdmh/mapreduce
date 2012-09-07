@@ -1,6 +1,6 @@
 // Boost.MapReduce library
 //
-//  Copyright (C) 2009 Craig Henderson.
+//  Copyright (C) 2009,2010,2011,2012 Craig Henderson.
 //  cdm.henderson@googlemail.com
 //
 //  Use, modification and distribution is subject to the
@@ -52,13 +52,19 @@ struct map_task
   : public mapreduce::map_task<std::string, map_value_type>
 {
     template<typename Runtime>
-    void operator()(Runtime &runtime, std::string const &key, T &value) const;
+    void operator()(
+        Runtime &runtime,
+        key_type const &key,
+        T &value) const;
 };
 
 struct reduce_task : public mapreduce::reduce_task<std::string, unsigned>
 {
     template<typename Runtime, typename It>
-    void operator()(Runtime &runtime, std::string const &key, It it, It const ite) const
+    void operator()(
+        Runtime &runtime,
+        key_type const &key,
+        It it, It const ite) const
     {
         runtime.emit(key, std::accumulate(it, ite, 0));
     }
@@ -69,7 +75,7 @@ void
 map_task<
     std::pair<
         char const *, char const *> >::operator()(
-            Runtime           &runtime,
+            Runtime &runtime,
             std::string const &/*key*/,
             std::pair<char const *, char const *> &value) const
 {
@@ -85,23 +91,25 @@ map_task<
             if ((ch < 'A' || ch > 'Z') && ch != '\'')
             {
                 std::string w(word,ptr-word);
-                std::transform(w.begin(), w.end(), w.begin(),
-                               std::bind1st(
-                                   std::mem_fun(&std::ctype<char>::tolower),
-                                   &std::use_facet<std::ctype<char> >(std::locale::classic())));
+                std::transform(
+                    w.begin(),
+                    w.end(),
+                    w.begin(),
+                    std::bind1st(
+                        std::mem_fun(&std::ctype<char>::tolower),
+                        &std::use_facet<std::ctype<char> >(std::locale::classic())));
+
                 runtime.emit_intermediate(w, 1);
                 in_word = false;
             }
         }
-        else
+        else if (ch >= 'A'  &&  ch <= 'Z')
         {
-            if (ch >= 'A'  &&  ch <= 'Z')
-            {
-                word = ptr;
-                in_word = true;
-            }
+            word = ptr;
+            in_word = true;
         }
     }
+
     if (in_word)
     {
         BOOST_ASSERT(ptr-word > 0);
@@ -119,7 +127,7 @@ template<> template<typename Runtime>
 void
 map_task<std::ifstream>::operator()(
     Runtime            &runtime,
-    std::string const  &/*key*/,
+    std::string  const &/*key*/,
     std::ifstream      &value) const
 {
     while (!value.eof())
@@ -159,7 +167,7 @@ map_task<std::ifstream>::operator()(
 }
 
 template<typename ReduceTask>
-class combiner
+class combiner : boost::noncopyable
 {
   public:
     template<typename IntermediateStore>
@@ -207,14 +215,15 @@ void run_test(mapreduce::specification spec)
 
     try
     {
+        typename Job::datasource_type datasource(spec);
+
 #ifdef RUN_SEQUENTIAL_MAP_REDUCE
         std::cout << "\nRunning Sequential MapReduce...";
 
         spec.map_tasks = 1;
         spec.reduce_tasks = 1;
-
-        typename Job::datasource_type datasource(spec);
         Job job(datasource, spec);
+
         job.template run<mapreduce::schedule_policy::sequential<Job> >(result);
         std::cout << "\nSequential MapReduce Finished.";
 #else
@@ -224,7 +233,6 @@ void run_test(mapreduce::specification spec)
         // we need to have a job object to interrogate
         //mapreduce::run<Job>(spec, result);
 
-        typename Job::datasource_type datasource(spec);
         Job job(datasource, spec);
         job.template run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
         std::cout << "\nCPU Parallel MapReduce Finished.\n";
@@ -315,7 +323,7 @@ int main(int argc, char **argv)
     std::cout << "MapReduce test program";
     if (argc < 2)
     {
-        std::cerr << "Usage: wordcount directory [num_map_tasks]\n";
+        std::cerr << "Usage: wordcount directory [num_map_tasks] [num_reduce_tasks]\n";
         return 1;
     }
 
@@ -337,7 +345,7 @@ int main(int argc, char **argv)
         mapreduce::job<
             wordcount::map_task_type
           , wordcount::reduce_task>
-        >(spec);
+        >(spec);           
 
     run_test<
         mapreduce::job<

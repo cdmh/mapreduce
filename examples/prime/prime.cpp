@@ -1,7 +1,7 @@
 /*
     MapReduce library
 
-    Copyright (C) 2009 Craig Henderson.
+    Copyright (C) 2009,2010,2011,2012 Craig Henderson.
     cdm.henderson@gmail.com
 
     Use, modification and distribution is subject to the
@@ -31,17 +31,16 @@
 */
 
 // The prime number code is based on work from Christian Henning [chhenning@gmail.com]
-#define _SECURE_SCL 0
-#define _HAS_ITERATOR_DEBUGGING 0
 
 #include <boost/config.hpp>
 #if defined(BOOST_MSVC)
 #   pragma warning(disable: 4127)
-#endif
 
 // turn off checked iterators to avoid performance hit
-#if defined(BOOST_MSVC)  &&  !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
-#define _SECURE_SCL 0
+#   if !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
+#       define _SECURE_SCL 0
+#       define _HAS_ITERATOR_DEBUGGING 0
+#   endif
 #endif
 
 #include "mapreduce.hpp"

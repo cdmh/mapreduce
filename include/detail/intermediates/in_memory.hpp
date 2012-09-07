@@ -292,11 +292,13 @@ class in_memory : boost::noncopyable
             for (typename intermediates_t::value_type::const_iterator it1=it->begin(); it1!=it->end(); ++it1)
             {
                 fn_obj.start(it1->first);
-                std::for_each<
-                    typename intermediates_t::value_type::mapped_type::const_iterator, FnObj &>(
-                        it1->second.begin(),
-                        it1->second.end(),
-                        fn_obj);
+
+                for (typename intermediates_t::value_type::mapped_type::const_iterator it2 = it1->second.begin();
+                     it2 != it1->second.end();
+                     ++it2)
+                {
+                    fn_obj(*it2);
+                }
                 fn_obj.finish(it1->first, *this);
             }
         }
