@@ -271,6 +271,8 @@ class job : private boost::noncopyable
         ptime start_time(microsec_clock::universal_time());
         try
         {
+            std::cout << "\nRunning reduce task on partition " << partition;
+
             reduce_task_runner runner(
                 specification_.output_filespec,
                 partition,
@@ -278,6 +280,7 @@ class job : private boost::noncopyable
                 intermediate_store_,
                 result);
             runner.reduce();
+            std::cout << "\nRunning reduce task on partition " << partition << " -- done.";
         }
         catch (std::exception &e)
         {
