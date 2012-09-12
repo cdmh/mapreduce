@@ -60,6 +60,7 @@ struct map_task : public mapreduce::map_task<
                 in_word = true;
             }
         }
+
         if (in_word)
             runtime.emit_intermediate(std::make_pair(word,ptr-word), 1);
     }
@@ -111,12 +112,5 @@ class combiner
   private:
     unsigned total_;
 };
-
-typedef
-mapreduce::job<
-    wordcount::map_task
-  , wordcount::reduce_task
-  , wordcount::combiner
-> job;
 
 }   // namespace wordcount
