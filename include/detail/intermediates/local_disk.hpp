@@ -68,11 +68,11 @@ struct file_merger
 
         while (files.size() > 0)
         {
-            typedef std::list<std::pair<boost::shared_ptr<std::ifstream>, Record> > file_lines_t;
+            typedef std::list<std::pair<std::shared_ptr<std::ifstream>, Record> > file_lines_t;
             file_lines_t file_lines;
             while (files.size() > 0)
             {
-                boost::shared_ptr<std::ifstream> file(new std::ifstream(files.front().c_str(), std::ios_base::in | std::ios_base::binary));
+                auto file = std::make_shared<std::ifstream>(files.front().c_str(), std::ios_base::in | std::ios_base::binary);
                 if (!file->is_open())
                     break;
 
@@ -105,7 +105,7 @@ struct file_merger
                         std::string line;
                         std::getline(*it->first, line, '\r');
 
-                        if (line.length() > 0)
+                        if (detail::length(line) > 0)
                         {
                             std::istringstream l(line);
                             l >> it->second;
@@ -146,7 +146,7 @@ struct file_merger
         std::for_each(
             delete_files.begin(),
             delete_files.end(),
-            boost::bind(detail::delete_file, _1));
+            std::bind(detail::delete_file, std::placeholders::_1));
     }
 };
 
@@ -158,6 +158,12 @@ struct file_sorter
         return mapreduce::merge_sort<Record>(in, out);
     }
 };
+
+template<typename T>
+uintmax_t const length(T const &value)
+{
+    return value.length();
+}
 
 }   // namespace detail
 
@@ -195,7 +201,7 @@ template<
     typename PartitionFn=mapreduce::hash_partitioner,
     typename SortFn=mapreduce::detail::file_sorter<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
     typename MergeFn=mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
-class local_disk : boost::noncopyable
+class local_disk : detail::noncopyable
 {
   private:
     struct intermediate_file_info
@@ -260,7 +266,7 @@ class local_disk : boost::noncopyable
                              unsigned                        const count)
             {
                 std::ostringstream linebuf;
-                linebuf << key.length() << "\t" << key << "\t" << value << "\r";
+                linebuf << detail::length(key) << "\t" << key << "\t" << value << "\r";
 
                 std::string line(linebuf.str());
                 for (unsigned loop=0; loop<count; ++loop)
@@ -308,7 +314,7 @@ class local_disk : boost::noncopyable
     typedef
     std::map<
         size_t, // hash value of intermediate key (R)
-        boost::shared_ptr<intermediate_file_info> >
+        std::shared_ptr<intermediate_file_info> >
     intermediates_t;
 
   public:
@@ -362,13 +368,10 @@ class local_disk : boost::noncopyable
             {
                 kvlist_[loop] =
                     std::make_pair(
-                        boost::shared_ptr<std::ifstream>(
-                            new std::ifstream),
-                            keyvalue_t());
-
-                kvlist_[loop].first->open(
-                    outer_->intermediate_files_.find(loop)->second->filename.c_str(),
-                    std::ios_base::binary);
+                        std::make_shared<std::ifstream>(
+                            outer_->intermediate_files_.find(loop)->second->filename.c_str(),
+                            std::ios_base::binary),
+                        keyvalue_t());
 
                 BOOST_ASSERT(kvlist_[loop].first->is_open());
                 read_record(
@@ -414,7 +417,7 @@ class local_disk : boost::noncopyable
         typedef
         std::vector<
             std::pair<
-                boost::shared_ptr<std::ifstream>,
+                std::shared_ptr<std::ifstream>,
                 keyvalue_t> >
         kvlist_t;
         kvlist_t kvlist_;
@@ -443,7 +446,7 @@ class local_disk : boost::noncopyable
                 std::for_each(
                     it->second->fragment_filenames.begin(),
                     it->second->fragment_filenames.end(),
-                    boost::bind(detail::delete_file, _1));
+                    std::bind(detail::delete_file, std::placeholders::_1));
             }
         }
         catch (std::exception const &e)
@@ -482,8 +485,7 @@ class local_disk : boost::noncopyable
             it = intermediate_files_.insert(
                     std::make_pair(
                         partition,
-                        boost::shared_ptr<intermediate_file_info>(
-                            new intermediate_file_info))).first;
+                        std::make_shared<intermediate_file_info>())).first;
         }
 
         if (it->second->filename.empty())
@@ -496,12 +498,6 @@ class local_disk : boost::noncopyable
             it->second->write_stream.open(it->second->filename);
         assert(it->second->write_stream.is_open());
         return it->second->write_stream.write(key, value);
-    }
-
-    template<typename T>
-    size_t const length(T const &value)
-    {
-        return value.length();
     }
 
     template<typename FnObj>
@@ -523,11 +519,11 @@ class local_disk : boost::noncopyable
             std::ifstream infile(infilename.c_str());
             while (read_record(infile, key, value))
             {
-                if (key != last_key  &&  length(key) > 0)
+                if (key != last_key  &&  detail::length(key) > 0)
                 {
-                    if (length(last_key) > 0)
+                    if (detail::length(last_key) > 0)
                         fn_obj.finish(last_key, *this);
-                    if (length(key) > 0)
+                    if (detail::length(key) > 0)
                     {
                         fn_obj.start(key);
                         std::swap(key, last_key);
@@ -537,7 +533,7 @@ class local_disk : boost::noncopyable
                 fn_obj(value);
             }
 
-            if (length(last_key) > 0)
+            if (detail::length(last_key) > 0)
                 fn_obj.finish(last_key, *this);
 
             infile.close();
@@ -567,8 +563,7 @@ class local_disk : boost::noncopyable
                     it = intermediate_files_.insert(
                             std::make_pair(
                                 partition,
-                                boost::shared_ptr<intermediate_file_info>(
-                                    new intermediate_file_info))).first;
+                                std::make_shared<intermediate_file_info>())).first;
                 }
 
                 ito->second->write_stream.close();
@@ -622,21 +617,21 @@ class local_disk : boost::noncopyable
         std::ifstream infile(filename.c_str());
         while (!(infile >> kv).eof())
         {
-            if (kv.first != last_key  &&  length(kv.first) > 0)
+            if (kv.first != last_key  &&  detail::length(kv.first) > 0)
             {
-                if (length(last_key) > 0)
+                if (detail::length(last_key) > 0)
                 {
                     callback(last_key, values.begin(), values.end());
                     values.clear();
                 }
-                if (length(kv.first) > 0)
+                if (detail::length(kv.first) > 0)
                     std::swap(kv.first, last_key);
             }
 
             values.push_back(kv.second);
         }
 
-        if (length(last_key) > 0)
+        if (detail::length(last_key) > 0)
             callback(last_key, values.begin(), values.end());
 
         infile.close();

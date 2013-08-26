@@ -33,8 +33,6 @@
 #ifndef MAPREDUCE_JOB_HPP
 #define MAPREDUCE_JOB_HPP
 
-#include <boost/interprocess/sync/scoped_lock.hpp>
-
 namespace mapreduce {
 
 template<typename T> size_t length(T const &str);
@@ -61,7 +59,7 @@ template<typename MapTask,
          typename Datasource=datasource::directory_iterator<MapTask>,
          typename IntermediateStore=intermediates::in_memory<MapTask, ReduceTask>,
          typename StoreResult=typename IntermediateStore::store_result_type>
-class job : private boost::noncopyable
+class job : detail::noncopyable
 {
   public:
     typedef MapTask                 map_task_type;
@@ -79,9 +77,11 @@ class job : private boost::noncopyable
     keyvalue_t;
 
   public:
-    class map_task_runner : boost::noncopyable
+    class map_task_runner : detail::noncopyable
     {
       public:
+        typedef ReduceTask reduce_task_type;
+
         map_task_runner(job &j)
           : job_(j),
             intermediate_store_(job_.number_of_partitions())
@@ -117,7 +117,7 @@ class job : private boost::noncopyable
         intermediate_store_type  intermediate_store_;
     };
 
-    class reduce_task_runner : boost::noncopyable
+    class reduce_task_runner : detail::noncopyable
     {
       public:
         reduce_task_runner(
@@ -205,17 +205,15 @@ class job : private boost::noncopyable
     template<typename SchedulePolicy>
     void run(SchedulePolicy &schedule, results &result)
     {
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
+        auto const start_time = std::chrono::system_clock::now();
         schedule(*this, result);
-        result.job_runtime = microsec_clock::universal_time() - start_time;
+        result.job_runtime = std::chrono::system_clock::now() - start_time;
     }
 
     template<typename Sync>
     bool const run_map_task(void *key, results &result, Sync &sync)
     {
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
+        auto const start_time = std::chrono::system_clock::now();
 
         bool success = true;
         try
@@ -237,12 +235,11 @@ class job : private boost::noncopyable
                 return false;
             }
 
-            std::cout << "\nRunning map task " << map_key;
             map_task_runner runner(*this);
             runner(map_key, value);
 
             // merge the map task intermediate results into the job
-            boost::interprocess::scoped_lock<Sync> lock(sync);
+            std::lock_guard<Sync> lock(sync);
             intermediate_store_.merge_from(runner.intermediate_store());
 
             ++result.counters.map_keys_completed;
@@ -253,7 +250,7 @@ class job : private boost::noncopyable
             ++result.counters.map_key_errors;
             success = false;
         }
-        result.map_times.push_back(microsec_clock::universal_time() - start_time);
+        result.map_times.push_back(std::chrono::system_clock::now() - start_time);
 
         return success;
     }
@@ -267,12 +264,9 @@ class job : private boost::noncopyable
     {
         bool success = true;
 
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
+        auto const start_time(std::chrono::system_clock::now());
         try
         {
-            std::cout << "\nRunning reduce task on partition " << partition;
-
             reduce_task_runner runner(
                 specification_.output_filespec,
                 partition,
@@ -280,7 +274,6 @@ class job : private boost::noncopyable
                 intermediate_store_,
                 result);
             runner.reduce();
-            std::cout << "\nRunning reduce task on partition " << partition << " -- done.";
         }
         catch (std::exception &e)
         {
@@ -289,7 +282,7 @@ class job : private boost::noncopyable
             success = false;
         }
         
-        result.reduce_times.push_back(microsec_clock::universal_time()-start_time);
+        result.reduce_times.push_back(std::chrono::system_clock::now() - start_time);
 
         return success;
     }

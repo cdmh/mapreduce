@@ -64,7 +64,7 @@ template<
     typename ReduceTask,
     typename PartitionFn=mapreduce::hash_partitioner,
     typename KeyCompare=std::less<typename ReduceTask::key_type> >
-class in_memory : boost::noncopyable
+class in_memory : detail::noncopyable
 {
   private:
     typedef
@@ -272,7 +272,6 @@ class in_memory : boost::noncopyable
         unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
         typename intermediates_t::value_type &map = intermediates_[partition];
 
-        BOOST_ASSERT(map.find(key) == map.end());
         map.insert(
             make_pair(
                 key,

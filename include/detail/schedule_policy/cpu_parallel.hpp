@@ -33,7 +33,7 @@
 #ifndef MAPREDUCE_CPU_PARALLEL_HPP
 #define MAPREDUCE_CPU_PARALLEL_HPP
 
-#include <boost/thread.hpp>
+#include <mutex>
 
 namespace mapreduce {
 
@@ -42,7 +42,7 @@ namespace schedule_policy {
 namespace detail {
 
 template<typename Job>
-inline void run_next_map_task(Job &job, boost::mutex &m1, boost::mutex &m2, results &result)
+inline void run_next_map_task(Job &job, std::mutex &m1, std::mutex &m2, results &result)
 {
     try
     {
@@ -66,19 +66,22 @@ inline void run_next_map_task(Job &job, boost::mutex &m1, boost::mutex &m2, resu
 }
 
 template<typename Job>
-inline void run_next_reduce_task(Job &job, unsigned &partition, boost::mutex &mutex, results &result)
+inline void run_next_reduce_task(Job &job, unsigned &partition, std::mutex &mutex, results &result)
 {
     try
     {
+        // local lambda to increment the partition within a lock
+        auto incr_partition = [&partition, &mutex] {
+            std::lock_guard<std::mutex> guard(mutex);
+            unsigned const part = partition++;
+            return part;
+        };
+
         while (1)
         {
-            boost::mutex::scoped_lock l(mutex);
-            unsigned part = partition++;
+            unsigned const part = incr_partition();
             if (part < job.number_of_partitions())
-            {
-                l.unlock();
                 job.run_reduce_task(part, result);
-            }
             else
                 break;
         }
@@ -94,10 +97,9 @@ void run_intermediate_results_shuffle(Job &job, unsigned const partition, result
 {
     try
     {
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
+        auto const start_time = std::chrono::system_clock::now();
         job.run_intermediate_results_shuffle(partition);
-        result.shuffle_times.push_back(microsec_clock::universal_time()-start_time);
+        result.shuffle_times.push_back(std::chrono::system_clock::now() - start_time);
     }
     catch (std::exception &e)
     {
@@ -109,93 +111,115 @@ void run_intermediate_results_shuffle(Job &job, unsigned const partition, result
 
 
 template<typename Job>
-class cpu_parallel
+class cpu_parallel : mapreduce::detail::noncopyable
 {
   public:
+    cpu_parallel() : num_cpus_(std::max(1U, std::thread::hardware_concurrency()))
+    {
+    }
+
     void operator()(Job &job, results &result)
     {
-        unsigned const num_cpus = std::max(1U,boost::thread::hardware_concurrency());
+        map(job, result);
+        intermediate(job, result);
+        reduce(job, result);
+        collate_results(result);
+        result.counters.num_result_files = job.number_of_partitions();
+    }
 
-        typedef std::vector<boost::shared_ptr<results> > all_results_t;
-        all_results_t all_results;
-        boost::mutex  m1, m2;
+  private:
+    void map(Job &job, results &result)
+    {
+        std::mutex m1, m2;
 
         // run the Map Tasks
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
+        auto     const start_time = std::chrono::system_clock::now();
+        unsigned const map_tasks  = std::max(num_cpus_,std::min(num_cpus_, job.number_of_map_tasks()));
 
-        unsigned const map_tasks = std::max(num_cpus,std::min(num_cpus, job.number_of_map_tasks()));
-
-        boost::thread_group map_threads;
+        mapreduce::detail::joined_thread_group map_threads;
         for (unsigned loop=0; loop<map_tasks; ++loop)
         {
-            boost::shared_ptr<results> this_result(new results);
-            all_results.push_back(this_result);
+            auto this_result = std::make_shared<results>();
+            all_results_.push_back(this_result);
 
-            boost::thread *thread =
-                new boost::thread(
-                    detail::run_next_map_task<Job>,
-                    boost::ref(job),
-                    boost::ref(m1),
-                    boost::ref(m2),
-                    boost::ref(*this_result));
-            map_threads.add_thread(thread);
+            map_threads.emplace_back(
+                std::thread(
+                    std::bind(
+                        &detail::run_next_map_task<Job>,
+                        std::ref(job),
+                        std::ref(m1),
+                        std::ref(m2),
+                        std::ref(*this_result))));
         }
         map_threads.join_all();
-        result.map_runtime = microsec_clock::universal_time() - start_time;
+        result.map_runtime = std::chrono::system_clock::now() - start_time;
+        result.counters.actual_map_tasks    = map_tasks;
+    }
 
+    void intermediate(Job &job, results &result)
+    {
         // Intermediate results shuffle
-        boost::thread_group shuffle_threads;
-        start_time = microsec_clock::universal_time();
+        auto const start_time = std::chrono::system_clock::now();
+
+        mapreduce::detail::joined_thread_group shuffle_threads;
         for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
         {
             for (unsigned loop=0;
-                 loop<num_cpus  &&  partition<job.number_of_partitions();
+                 loop<num_cpus_  &&  partition<job.number_of_partitions();
                  ++loop, ++partition)
             {
-                boost::shared_ptr<results> this_result(new results);
-                all_results.push_back(this_result);
+                auto this_result = std::make_shared<results>();
+                all_results_.push_back(this_result);
 
-                boost::thread *thread =
-                    new boost::thread(
-                        detail::run_intermediate_results_shuffle<Job>,
-                        boost::ref(job),
-                        partition,
-                        boost::ref(*this_result));
-                shuffle_threads.add_thread(thread);
-
+                shuffle_threads.emplace_back(
+                    std::thread(
+                        std::bind(
+                            &detail::run_intermediate_results_shuffle<Job>,
+                            std::ref(job),
+                            partition,
+                            std::ref(*this_result))));
             }
         }
         shuffle_threads.join_all();
-        result.shuffle_runtime = microsec_clock::universal_time() - start_time;
+        result.shuffle_runtime = std::chrono::system_clock::now() - start_time;
+    }
+
+    void reduce(Job &job, results &result)
+    {
+        std::mutex m1;
 
         // run the Reduce Tasks
-        boost::thread_group reduce_threads;
+        mapreduce::detail::joined_thread_group reduce_threads;
         unsigned const reduce_tasks =
-            std::min<unsigned const>(num_cpus, job.number_of_partitions());
+            std::min<unsigned const>(num_cpus_, job.number_of_partitions());
+
+        auto const start_time(std::chrono::system_clock::now());
 
         unsigned partition = 0;
-        start_time = microsec_clock::universal_time();
         for (unsigned loop=0; loop<reduce_tasks; ++loop)
         {
-            boost::shared_ptr<results> this_result(new results);
-            all_results.push_back(this_result);
+            auto this_result = std::make_shared<results>();
+            all_results_.push_back(this_result);
 
-            boost::thread *thread =
-                new boost::thread(
-                    detail::run_next_reduce_task<Job>,
-                    boost::ref(job),
-                    boost::ref(partition),
-                    boost::ref(m1),
-                    boost::ref(*this_result));
-            reduce_threads.add_thread(thread);
+            reduce_threads.emplace_back(
+                std::thread(
+                    std::bind(
+                        &detail::run_next_reduce_task<Job>,
+                        std::ref(job),
+                        std::ref(partition),
+                        std::ref(m1),
+                        std::ref(*this_result))));
         }
         reduce_threads.join_all();
-        result.reduce_runtime = microsec_clock::universal_time() - start_time;
+        result.reduce_runtime = std::chrono::system_clock::now() - start_time;
+        result.counters.actual_reduce_tasks = reduce_tasks;
+    }
 
+    void collate_results(results &result)
+    {
         // we're done with the map/reduce job, collate the statistics before returning
-        for (all_results_t::const_iterator it=all_results.begin();
-             it!=all_results.end();
+        for (all_results_t::const_iterator it=all_results_.begin();
+             it!=all_results_.end();
              ++it)
         {
             result.counters.map_keys_executed     += (*it)->counters.map_keys_executed;
@@ -217,12 +241,13 @@ class cpu_parallel
                 (*it)->reduce_times.begin(),
                 (*it)->reduce_times.end(),
                 std::back_inserter(result.reduce_times));
-
         }
-        result.counters.actual_map_tasks    = map_tasks;
-        result.counters.actual_reduce_tasks = reduce_tasks;
-        result.counters.num_result_files    = job.number_of_partitions();
     }
+
+  private:
+    typedef std::vector<std::shared_ptr<results> > all_results_t;
+    all_results_t all_results_;
+    unsigned const num_cpus_;
 };
 
 }   // namespace schedule_policy

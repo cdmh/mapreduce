@@ -42,7 +42,7 @@ namespace datasource {
 namespace detail {
 
 template<typename Key, typename Value>
-class file_handler : boost::noncopyable
+class file_handler : ::mapreduce::detail::noncopyable
 {
   public:
     file_handler(mapreduce::specification const &spec);
@@ -54,7 +54,7 @@ class file_handler : boost::noncopyable
     mapreduce::specification const &specification_;
 
     struct data;
-    boost::shared_ptr<data> data_;
+    std::shared_ptr<data> data_;
 };
 
 template<>
@@ -90,22 +90,22 @@ struct file_handler<
     std::string,
     std::pair<
         char const *,
-        char const *> >::data
+        std::uintmax_t> >::data
 {
     struct detail
     {
-        boost::iostreams::mapped_file   mmf;    // memory mapped file
-        boost::uintmax_t                size;   // size of the file
-        boost::uintmax_t                offset; // offset to map next time
+        boost::iostreams::mapped_file mmf;    // memory mapped file
+        std::uintmax_t              size;   // size of the file
+        std::uintmax_t              offset; // offset to map next time
     };
 
     typedef
-    std::map<std::string, boost::shared_ptr<detail> >
+    std::map<std::string, std::shared_ptr<detail> >
     maps_t;
 
-    maps_t       maps;
-    boost::mutex mutex;
-    std::string  current_file;
+    maps_t      maps;
+    std::mutex  mutex;
+    std::string current_file;
 };
 
 template<>
@@ -113,7 +113,7 @@ file_handler<
     std::string,
     std::pair<
         char const *,
-        char const *> >::file_handler(mapreduce::specification const &spec)
+        std::uintmax_t> >::file_handler(mapreduce::specification const &spec)
   : specification_(spec), data_(new data)
 {
 }
@@ -125,28 +125,30 @@ file_handler<
     std::string,
     std::pair<
         char const *,
-        char const *> >::get_data(
+        std::uintmax_t> >::get_data(
             std::string const &key,
-            std::pair<char const *, char const *> &value) const
+            std::pair<char const *, std::uintmax_t> &value) const
 {
     // we need to hold the lock for the duration of this function
-    boost::mutex::scoped_lock l(data_->mutex);
+    std::lock_guard<std::mutex> l(data_->mutex);
     data::maps_t::iterator it;
     if (data_->current_file.empty())
     {
         data_->current_file = key;
-        it = data_->maps.insert(std::make_pair(key, boost::shared_ptr<data::detail>(new data::detail))).first;
+        it = data_->maps.insert(std::make_pair(key, std::make_shared<data::detail>())).first;
         it->second->mmf.open(key, BOOST_IOS::in);
         if (!it->second->mmf.is_open())
         {
-            std::cout << "\nFailed to map file into memory: " << key;
+#ifdef DEBUG_TRACE_OUTPUT
+            std::cerr << "\nFailed to map file into memory: " << key;
+#endif
             return false;
         }
 
         it->second->size   = boost::filesystem::file_size(key);
         it->second->offset = std::min(specification_.max_file_segment_size, it->second->size);
         value.first        = it->second->mmf.const_data();
-        value.second       = value.first + it->second->offset;
+        value.second       = it->second->offset;
     }
     else
     {
@@ -154,19 +156,24 @@ file_handler<
         it = data_->maps.find(key);
         BOOST_ASSERT(it != data_->maps.end());
 
+        std::uintmax_t const new_offset = std::min(it->second->offset+specification_.max_file_segment_size, it->second->size); 
         value.first        = it->second->mmf.const_data() + it->second->offset;
-        it->second->offset = std::min(it->second->offset+specification_.max_file_segment_size, it->second->size);
-        value.second       = it->second->mmf.const_data() + it->second->offset;
+        value.second       = new_offset - it->second->offset;
+        it->second->offset = new_offset;
     }
 
     if (it->second->offset == it->second->size)
         data_->current_file.clear();
-
-    // break on a line boundary
-    while (*value.second != '\n'  &&  *value.second != '\r'  &&  it->second->offset != it->second->size)
+    else
     {
-        ++value.second;
-        ++it->second->offset;
+        // break on a line boundary
+        char const *ptr = value.first + value.second;
+        while (*ptr != '\n'  &&  *ptr != '\r'  &&  it->second->offset != it->second->size)
+        {
+            ++ptr;
+            ++value.second;
+            ++it->second->offset;
+        }
     }
 
     return true;
@@ -178,9 +185,9 @@ file_handler<
     std::string,
     std::pair<
         char const *,
-        char const *> >::setup_key(std::string &key) const
+        std::uintmax_t> >::setup_key(std::string &key) const
 {
-    boost::mutex::scoped_lock l(data_->mutex);
+    std::lock_guard<std::mutex> l(data_->mutex);
     if (data_->current_file.empty())
         return false;
     key = data_->current_file;
@@ -194,7 +201,7 @@ template<
     typename FileHandler = detail::file_handler<
         typename MapTask::key_type,
         typename MapTask::value_type> >
-class directory_iterator : boost::noncopyable
+class directory_iterator : mapreduce::detail::noncopyable
 {
   public:
     directory_iterator(mapreduce::specification const &spec)

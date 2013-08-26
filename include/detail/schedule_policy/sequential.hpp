@@ -54,31 +54,40 @@ class sequential
   public:
     void operator()(Job &job, results &result)
     {
-        using namespace boost::posix_time;
-        ptime start_time(microsec_clock::universal_time());
-
-        // Map Tasks
-        void *key = 0;
-        detail::null_lock nolock;
-        while (job.get_next_map_key(key)  &&  job.run_map_task(key, result, nolock))
-            ;
-        result.map_runtime = microsec_clock::universal_time() - start_time;
-
-        // Intermediate results shuffle
-        start_time = microsec_clock::universal_time();
-        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
-            job.run_intermediate_results_shuffle(partition);
-        result.shuffle_runtime = microsec_clock::universal_time() - start_time;
-
-        // Reduce Tasks
-        start_time = microsec_clock::universal_time();
-        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
-            job.run_reduce_task(partition, result);
-        result.reduce_runtime = microsec_clock::universal_time() - start_time;
+        map(job, result);
+        intermediate(job, result);
+        reduce(job, result);
 
         result.counters.actual_map_tasks    = 1;
         result.counters.actual_reduce_tasks = 1;
         result.counters.num_result_files    = job.number_of_partitions();
+    }
+
+    void map(Job &job, results &result)
+    {
+        auto const start_time(std::chrono::system_clock::now());
+
+        void *key = 0;
+        detail::null_lock nolock;
+        while (job.get_next_map_key(key)  &&  job.run_map_task(key, result, nolock))
+            ;
+        result.map_runtime = std::chrono::system_clock::now() - start_time;
+    }
+
+    void intermediate(Job &job, results &result)
+    {
+        auto const start_time(std::chrono::system_clock::now());
+        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
+            job.run_intermediate_results_shuffle(partition);
+        result.shuffle_runtime = std::chrono::system_clock::now() - start_time;
+    }
+
+    void reduce(Job &job, results &result)
+    {
+        auto const start_time(std::chrono::system_clock::now());
+        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
+            job.run_reduce_task(partition, result);
+        result.reduce_runtime = std::chrono::system_clock::now() - start_time;
     }
 };
 
