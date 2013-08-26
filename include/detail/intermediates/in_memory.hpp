@@ -272,6 +272,7 @@ class in_memory : boost::noncopyable
         unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
         typename intermediates_t::value_type &map = intermediates_[partition];
 
+        BOOST_ASSERT(map.find(key) == map.end());
         map.insert(
             make_pair(
                 key,
