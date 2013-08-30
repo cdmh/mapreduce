@@ -45,6 +45,8 @@ struct null_combiner;
 
 namespace detail {
 
+template<typename T> uintmax_t const length(T const & value);
+
 struct file_lines_comp
 {
     template<typename T>
