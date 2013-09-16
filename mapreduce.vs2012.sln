@@ -1,14 +1,14 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mapreduce", "mapreduce.vcxproj", "{F1A9A9FC-ACE9-4F93-8162-B888697FD81B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mapreduce", "mapreduce.vs2012.vcxproj", "{F1A9A9FC-ACE9-4F93-8162-B888697FD81B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wordcount", "examples\wordcount\wordcount.vcxproj", "{AB0444E8-E927-470A-BF0B-A60E67F91B06}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wordcount", "examples\wordcount\wordcount.vs2012.vcxproj", "{AB0444E8-E927-470A-BF0B-A60E67F91B06}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mrtest", "test\mrtest.vcxproj", "{3BC934D3-0EF5-4F82-B902-C1EC4527574D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mrtest", "tests\mrtest\mrtest.vs2012.vcxproj", "{3BC934D3-0EF5-4F82-B902-C1EC4527574D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prime", "examples\prime\prime.vcxproj", "{FD001B34-1464-4D19-B92E-F33A1BD9E97C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prime", "examples\prime\prime.vs2012.vcxproj", "{FD001B34-1464-4D19-B92E-F33A1BD9E97C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "friends", "examples\friends\friends.vcxproj", "{968ED15B-CF39-4974-A6CF-C7BDDF6614B7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "friends", "examples\friends\friends.vs2012.vcxproj", "{968ED15B-CF39-4974-A6CF-C7BDDF6614B7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
