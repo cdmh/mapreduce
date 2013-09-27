@@ -15,7 +15,12 @@ struct null_combiner;
 
 namespace detail {
 
-template<typename T> uintmax_t const length(T const & value);
+template<typename T>
+inline
+uintmax_t const length(T const &value)
+{
+    return value.length();
+}
 
 struct file_lines_comp
 {
@@ -130,12 +135,6 @@ struct file_sorter
         return mapreduce::merge_sort<Record>(in, out);
     }
 };
-
-template<typename T>
-uintmax_t const length(T const &value)
-{
-    return value.length();
-}
 
 }   // namespace detail
 
