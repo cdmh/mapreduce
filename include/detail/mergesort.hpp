@@ -5,15 +5,12 @@
 
 //#define DEBUG_TRACE_OUTPUT
 
-#ifdef DEBUG_TRACE_OUTPUT
-#include <iostream>
-#endif
-
 #include <deque>
 #include <list>
 #include <map>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <boost/filesystem.hpp>
 
 #ifdef __GNUC__
