@@ -556,7 +556,9 @@ class local_disk : detail::noncopyable
 
     void run_intermediate_results_shuffle(unsigned const partition)
     {
-/*!!!*/ std::cout << "\nIntermediate Results Shuffle, Partition " << partition << "...";
+#ifdef DEBUG_TRACE_OUTPUT
+        std::clog << "\nIntermediate Results Shuffle, Partition " << partition << "...";
+#endif
         typename intermediates_t::iterator it = intermediate_files_.find(partition);
         assert(it != intermediate_files_.end());
         it->second->write_stream.close();
@@ -570,7 +572,9 @@ class local_disk : detail::noncopyable
     template<typename Callback>
     void reduce(unsigned const partition, Callback &callback)
     {
-/*!!!*/ std::cout << "\nReduce Phase running for partition " << partition << "...";
+#ifdef DEBUG_TRACE_OUTPUT
+        std::clog << "\nReduce Phase running for partition " << partition << "...";
+#endif
 
         typename intermediates_t::iterator it = intermediate_files_.find(partition);
         BOOST_ASSERT(it != intermediate_files_.end());

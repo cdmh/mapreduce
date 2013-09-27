@@ -96,16 +96,13 @@ inline bool const delete_file(std::string const &pathname)
     try
     {
 #ifdef DEBUG_TRACE_OUTPUT
-        std::cout << "\n   deleting " << pathname;
+        std::clog << "\n   deleting " << pathname;
 #endif
         success = boost::filesystem::remove(pathname);
     }
     catch (std::exception &e)
     {
-#ifdef DEBUG_TRACE_OUTPUT
-        std::cerr << "\n" << e.what() << "\n";
-#endif
-        e;
+        std::cerr << "Error deleting file \"" << pathname << "\"\n" << e.what() << "\n";
     }
     return success;
 }
@@ -154,7 +151,7 @@ bool const merge_sort(char     const *in,
                       unsigned const  max_lines = 10000000)
 {
 #ifdef DEBUG_TRACE_OUTPUT
-    std::cout << "\n   merge_sort " << in << " to " << out;
+    std::clog << "\n   merge_sort " << in << " to " << out;
 #endif
     std::deque<std::string>         temporary_files;
     detail::temporary_file_manager<

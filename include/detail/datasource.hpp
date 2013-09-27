@@ -109,9 +109,7 @@ file_handler<
         it->second->mmf.open(key, BOOST_IOS::in);
         if (!it->second->mmf.is_open())
         {
-#ifdef DEBUG_TRACE_OUTPUT
             std::cerr << "\nFailed to map file into memory: " << key;
-#endif
             return false;
         }
 
