@@ -128,11 +128,11 @@ struct file_merger
 };
 
 template<typename Record>
-struct file_sorter
+struct file_key_combiner
 {
-    bool const operator()(char const *in, char const *out) const
+    bool const operator()(std::string const &in, std::string const &out) const
     {
-        return mapreduce::merge_sort<Record>(in, out);
+        return mapreduce::file_key_combiner<Record>(in, out);
     }
 };
 
@@ -169,125 +169,11 @@ class reduce_file_output
 template<
     typename MapTask,
     typename ReduceTask,
-    typename PartitionFn=mapreduce::hash_partitioner,
-    typename SortFn=mapreduce::detail::file_sorter<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
-    typename MergeFn=mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
+    typename PartitionFn = mapreduce::hash_partitioner,
+    typename CombineFile = mapreduce::detail::file_key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
+    typename MergeFn     = mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
 class local_disk : detail::noncopyable
 {
-  private:
-    struct intermediate_file_info
-    {
-        intermediate_file_info()
-        {
-        }
-
-        intermediate_file_info(std::string const &fname)
-          : filename(fname)
-        {
-        }
-
-        struct kv_file : public std::ofstream
-        {
-            kv_file() : sorted_(true)
-            {
-            }
-
-            ~kv_file()
-            {
-                close();
-            }
-
-            void open(std::string const &filename)
-            {
-                assert(records_.empty());
-                use_cache_ = true;
-                std::ofstream::open(filename.c_str(), std::ios_base::binary);
-            }
-
-            void close(void)
-            {
-                if (is_open())
-                {
-                    flush_cache();
-                    std::ofstream::close();
-                }
-            }
-
-            bool const sorted(void) const
-            {
-                return sorted_;
-            }
-
-            bool const write(typename ReduceTask::key_type   const &key,
-                             typename ReduceTask::value_type const &value)
-            {
-                if (use_cache_)
-                {
-                    ++records_.insert(std::make_pair(std::make_pair(key,value),0U)).first->second;
-                    return true;
-                }
-
-                sorted_ = false;
-                return write(key, value, 1);
-            }
-
-          protected:
-            bool const write(typename ReduceTask::key_type   const &key,
-                             typename ReduceTask::value_type const &value,
-                             unsigned                        const count)
-            {
-                std::ostringstream linebuf;
-                linebuf << detail::length(key) << "\t" << key << "\t" << value << "\r";
-
-                std::string line(linebuf.str());
-                for (unsigned loop=0; loop<count; ++loop)
-                {
-                    *this << line;
-                    if (bad()  ||  fail())
-                        return false;
-                }
-                return true;
-            }
-
-            bool const flush_cache(void)
-            {
-                use_cache_ = false;
-                for (typename records_t::const_iterator it  = records_.begin(); it != records_.end(); ++it)
-                {
-                    if (!write(it->first.first, it->first.second, it->second))
-                        return false;
-                }
-
-                records_.clear();
-                return true;
-            }
-
-          private:
-            typedef
-            std::pair<typename ReduceTask::key_type,
-                      typename ReduceTask::value_type>
-            record_t;
-
-            typedef
-            std::map<record_t, unsigned>
-            records_t;
-
-            bool      sorted_;
-            bool      use_cache_;
-            records_t records_;
-        };
-
-        std::string             filename;
-        kv_file                 write_stream;
-        std::list<std::string>  fragment_filenames;
-    };
-
-    typedef
-    std::map<
-        size_t, // hash value of intermediate key (R)
-        std::shared_ptr<intermediate_file_info> >
-    intermediates_t;
-
   public:
     typedef MapTask    map_task_type;
     typedef ReduceTask reduce_task_type;
@@ -337,10 +223,14 @@ class local_disk : detail::noncopyable
         {
             for (unsigned loop=0; loop<outer_->num_partitions_; ++loop)
             {
+                auto intermediate = outer_->intermediate_files_.find(loop);
+                if (intermediate == outer_->intermediate_files_.end())
+                    return end();
+
                 kvlist_[loop] =
                     std::make_pair(
                         std::make_shared<std::ifstream>(
-                            outer_->intermediate_files_.find(loop)->second->filename.c_str(),
+                            intermediate->second->filename.c_str(),
                             std::ios_base::binary),
                         keyvalue_t());
 
@@ -397,7 +287,123 @@ class local_disk : detail::noncopyable
     };
     friend class const_result_iterator;
 
-    local_disk(unsigned const num_partitions)
+  private:
+    struct intermediate_file_info
+    {
+        intermediate_file_info()
+        {
+        }
+
+        intermediate_file_info(std::string const &fname)
+          : filename(fname)
+        {
+        }
+
+        struct kv_file : public std::ofstream
+        {
+            typedef typename MapTask::value_type    key_type;
+            typedef typename ReduceTask::value_type value_type;
+
+            kv_file() : sorted_(true)
+            {
+            }
+
+            ~kv_file()
+            {
+                close();
+            }
+
+            void open(std::string const &filename)
+            {
+                assert(records_.empty());
+                use_cache_ = true;
+                std::ofstream::open(filename.c_str(), std::ios_base::binary);
+            }
+
+            void close(void)
+            {
+                if (is_open())
+                {
+                    flush_cache();
+                    std::ofstream::close();
+                }
+            }
+
+            bool const sorted(void) const
+            {
+                return sorted_;
+            }
+
+            bool const write(key_type const &key, value_type const &value)
+            {
+                if (use_cache_)
+                {
+                    ++records_.insert(std::make_pair(std::make_pair(key,value),0U)).first->second;
+                    return true;
+                }
+
+                sorted_ = false;
+                return write(key, value, 1);
+            }
+
+          protected:
+            bool const write(key_type   const &key,
+                             value_type const &value,
+                             unsigned   const count)
+            {
+                std::ostringstream linebuf;
+                linebuf << std::make_pair(key,value);
+
+                std::string line(linebuf.str());
+                for (unsigned loop=0; loop<count; ++loop)
+                {
+                    *this << line << "\r";
+                    if (bad()  ||  fail())
+                        return false;
+                }
+                return true;
+            }
+
+            bool const flush_cache(void)
+            {
+                use_cache_ = false;
+                for (typename records_t::const_iterator it  = records_.begin(); it != records_.end(); ++it)
+                {
+                    if (!write(it->first.first, it->first.second, it->second))
+                        return false;
+                }
+
+                records_.clear();
+                return true;
+            }
+
+          private:
+            typedef
+            std::pair<key_type, value_type>
+            record_t;
+
+            typedef
+            std::map<record_t, unsigned>
+            records_t;
+
+            bool      sorted_;
+            bool      use_cache_;
+            records_t records_;
+        };
+
+        std::string             filename;
+        kv_file                 write_stream;
+        std::list<std::string>  fragment_filenames;
+    };
+
+    typedef
+    std::map<
+        size_t, // hash value of intermediate key (R)
+        std::shared_ptr<intermediate_file_info> >
+    intermediates_t;
+
+  public:
+    explicit local_disk(unsigned const num_partitions)
       : num_partitions_(num_partitions)
     {
     }
@@ -436,16 +442,18 @@ class local_disk : detail::noncopyable
         return const_result_iterator(this).end();
     }
 
+    // receive final result
     template<typename StoreResult>
     bool const insert(typename reduce_task_type::key_type   const &key,
                       typename reduce_task_type::value_type const &value,
-                      StoreResult &store_result)
+                      StoreResult                                 &store_result)
     {
         store_result(key, value);
-        return insert(key, value);
+        return true;//!!!!insert(key, value);
     }
 
-    bool const insert(typename reduce_task_type::key_type   const &key,
+    // receive intermediate result
+    bool const insert(typename map_task_type::value_type    const &key,
                       typename reduce_task_type::value_type const &value)
     {
         unsigned const partition = partitioner_(key, num_partitions_);
@@ -475,48 +483,15 @@ class local_disk : detail::noncopyable
     void combine(FnObj &fn_obj)
     {
         this->close_files();
-        for (typename intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
+        for (auto it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
         {
-            std::string infilename  = it->second->filename;
             std::string outfilename = platform::get_temporary_filename();
 
-            // sort the input file
-            sort_fn_(infilename.c_str(), outfilename.c_str());
-            detail::delete_file(infilename);
-            std::swap(infilename, outfilename);
-
-            typename reduce_task_type::key_type key, last_key;
-            typename reduce_task_type::value_type value;
-            std::ifstream infile(infilename.c_str());
-            while (read_record(infile, key, value))
-            {
-                if (key != last_key  &&  detail::length(key) > 0)
-                {
-                    if (detail::length(last_key) > 0)
-                        fn_obj.finish(last_key, *this);
-                    if (detail::length(key) > 0)
-                    {
-                        fn_obj.start(key);
-                        std::swap(key, last_key);
-                    }
-                }
-
-                fn_obj(value);
-            }
-
-            if (detail::length(last_key) > 0)
-                fn_obj.finish(last_key, *this);
-
-            infile.close();
-
-            detail::delete_file(infilename);
+            // run the combine function to combine records with the same key
+            combine_fn_(it->second->filename, outfilename);
+            detail::delete_file(it->second->filename);
+            std::swap(it->second->filename, outfilename);
         }
-
-        this->close_files();
-    }
-
-    void combine(mapreduce::null_combiner &/*fn_obj*/)
-    {
         this->close_files();
     }
 
@@ -545,8 +520,8 @@ class local_disk : detail::noncopyable
                 }
                 else
                 {
-                    std::string const sorted = platform::get_temporary_filename();
-                    sort_fn_(ito->second->filename.c_str(), sorted.c_str());
+                    std::string sorted = platform::get_temporary_filename();
+                    combine_fn_(ito->second->filename, sorted);
                     it->second->fragment_filenames.push_back(sorted);
                 }
                 assert(ito->second->fragment_filenames.empty());
@@ -617,23 +592,14 @@ class local_disk : detail::noncopyable
                                   typename reduce_task_type::key_type   &key,
                                   typename reduce_task_type::value_type &value)
     {
-#if defined(__SGI_STL_PORT)
-        size_t keylen;
-#else
-        std::streamsize keylen;
-#endif
-        keylen = 0;
-        infile >> keylen;
-        if (infile.eof()  ||  keylen == 0)
+        std::pair<typename reduce_task_type::key_type,
+                  typename reduce_task_type::value_type> keyvalue;
+        infile >> keyvalue;
+        if (infile.eof()  ||  infile.bad())
             return false;
 
-        char tab;
-        infile.read(&tab, 1);
-
-        key.resize(keylen);
-        infile.read(&*key.begin(), keylen);
-        infile.read(&tab, 1);
-        infile >> value;
+        key   = keyvalue.first;
+        value = keyvalue.second;
         return true;
     }
 
@@ -649,7 +615,7 @@ class local_disk : detail::noncopyable
 
     unsigned const  num_partitions_;
     intermediates_t intermediate_files_;
-    SortFn          sort_fn_;
+    CombineFile     combine_fn_;
     MergeFn         merge_fn_;
     PartitionFn     partitioner_;
 };

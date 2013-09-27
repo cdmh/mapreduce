@@ -64,14 +64,18 @@ class job : detail::noncopyable
         {
             map_task_type()(*this, key, value);
 
-            // consolidating map intermediate results can save network time by
+            // consolidating map intermediate results can save time by
             // aggregating the mapped valued at mapper
-            combiner_type::run(intermediate_store_);
+#ifdef DEBUG_TRACE_OUTPUT
+            std::clog << "\nRunning combiner...";
+#endif
+            combiner_type instance;
+            intermediate_store_.combine(instance);
 
             return *this;
         }
 
-        bool const emit_intermediate(typename reduce_task_type::key_type   const &key,
+        bool const emit_intermediate(typename map_task_type::value_type    const &key,
                                      typename reduce_task_type::value_type const &value)
         {
             return intermediate_store_.insert(key, value);
@@ -185,7 +189,6 @@ class job : detail::noncopyable
     {
         auto const start_time = std::chrono::system_clock::now();
 
-        bool success = true;
         try
         {
             ++result.counters.map_keys_executed;
@@ -211,18 +214,17 @@ class job : detail::noncopyable
             // merge the map task intermediate results into the job
             std::lock_guard<Sync> lock(sync);
             intermediate_store_.merge_from(runner.intermediate_store());
-
             ++result.counters.map_keys_completed;
         }
         catch (std::exception &e)
         {
-            std::cerr << "\nError: " << e.what() << "\n";      /*!!!*/
+            std::cerr << "\nError: " << e.what() << "\n";
             ++result.counters.map_key_errors;
-            success = false;
+            return false;
         }
         result.map_times.push_back(std::chrono::system_clock::now() - start_time);
 
-        return success;
+        return true;
     }
 
     void run_intermediate_results_shuffle(unsigned const partition)

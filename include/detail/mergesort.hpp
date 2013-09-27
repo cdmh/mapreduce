@@ -35,14 +35,14 @@ bool const greater_2nd(T const &first, T const &second)
 }
 
 template<typename It>
-bool const do_file_merge(It first, It last, char const *outfilename)
+bool const do_file_merge(It first, It last, std::string const &outfilename)
 {
 #ifdef _DEBUG
     int const max_files=10;
 #endif
 
     int count = 0;
-    std::ofstream outfile(outfilename, std::ios_base::out | std::ios_base::binary);
+    std::ofstream outfile(outfilename.c_str(), std::ios_base::out | std::ios_base::binary);
     while (first!=last)
     {
         //!!!subsequent times around the loop need to merge with outfilename from previous iteration
@@ -93,7 +93,7 @@ inline bool const delete_file(std::string const &pathname)
     try
     {
 #ifdef DEBUG_TRACE_OUTPUT
-        std::clog << "\n   deleting " << pathname;
+        std::clog << "\ndeleting " << pathname;
 #endif
         success = boost::filesystem::remove(pathname);
     }
@@ -115,15 +115,15 @@ class temporary_file_manager : detail::noncopyable
 
     ~temporary_file_manager()
     {
-        try
+        for (auto filename : filenames_)
         {
-            // bind to the pass-through delete_file function because boost::filesystem::remove
-            // takes a boost::filesystem::path parameter and not a std::string parameter - the
-            // compiler will understandably not bind using an implicit conversion
-            std::for_each(filenames_.begin(), filenames_.end(), std::bind(delete_file, std::placeholders::_1));
-        }
-        catch (std::exception &)
-        {
+            try
+            {
+                delete_file(filename);
+            }
+            catch (std::exception &)
+            {
+            }
         }
     }
 
@@ -143,18 +143,18 @@ struct shared_ptr_indirect_less
 };
 
 template<typename Record>
-bool const merge_sort(char     const *in,
-                      char     const *out,
-                      unsigned const  max_lines = 10000000)
+bool const file_key_combiner(std::string const &in,
+                             std::string const &out,
+                             unsigned    const  max_lines = 10000000)
 {
 #ifdef DEBUG_TRACE_OUTPUT
-    std::clog << "\n   merge_sort " << in << " to " << out;
+    std::clog << "\ncombining file keys " << in << "\n               into " << out;
 #endif
     std::deque<std::string>         temporary_files;
     detail::temporary_file_manager<
         std::deque<std::string> >   tfm(temporary_files);
     
-    std::ifstream infile(in, std::ios_base::in | std::ios_base::binary);
+    std::ifstream infile(in.c_str(), std::ios_base::in | std::ios_base::binary);
     if (!infile.is_open())
     {
         std::ostringstream err;
@@ -179,20 +179,20 @@ bool const merge_sort(char     const *in,
                 auto record = std::make_shared<Record>();
                 std::istringstream l(line);
                 l >> *record;
-                ++lines.insert(std::make_pair(record,0U)).first->second;
+                ++lines.insert(std::make_pair(record, 0U)).first->second;
             }
         }
 
         std::string const temp_filename(platform::get_temporary_filename());
         temporary_files.push_back(temp_filename);
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
-        for (typename lines_t::const_iterator it=lines.begin(); it!=lines.end(); ++it)
+        for (typename lines_t::iterator it=lines.begin(); it!=lines.end(); ++it)
         {
             if (file.fail()  ||  file.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
 
-            for (unsigned loop=0; loop<it->second; ++loop)
-                file << *it->first << "\r";
+            it->first->second *= it->second;
+            file << *it->first << "\r";
         }
     }
     infile.close();

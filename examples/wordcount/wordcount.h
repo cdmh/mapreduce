@@ -42,9 +42,7 @@ struct map_task : public mapreduce::map_task<
     }
 };
 
-struct reduce_task : public mapreduce::reduce_task<
-                                std::pair<char const *, std::uintmax_t>,
-                                unsigned>
+struct reduce_task : public mapreduce::reduce_task<std::string, unsigned>
 {
     template<typename Runtime, typename It>
     void operator()(Runtime &runtime, key_type const &key, It it, It const ite) const
@@ -56,13 +54,6 @@ struct reduce_task : public mapreduce::reduce_task<
 class combiner
 {
   public:
-    template<typename IntermediateStore>
-    static void run(IntermediateStore &intermediate_store)
-    {
-        combiner instance;
-        intermediate_store.combine(instance);
-    }
-
     void start(reduce_task::key_type const &)
     {
         total_ = 0;
@@ -72,16 +63,17 @@ class combiner
     void finish(reduce_task::key_type const &key, IntermediateStore &intermediate_store)
     {
         if (total_ > 0)
-            intermediate_store.insert(key, total_);
+        {
+            // the combiner needs to emit an intermediate result, not a final result, so
+            // here we convert the type from std::string (final) to intermediate (ptr/length)
+            intermediate_store.insert(std::make_pair(key.c_str(), key.length()), total_);
+        }
     }
 
     void operator()(reduce_task::value_type const &value)
     {
         total_ += value;
     }
-        
-  private:
-    combiner() { }
 
   private:
     unsigned total_;

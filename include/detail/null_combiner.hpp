@@ -12,16 +12,16 @@ struct null_combiner
     {
     }
 
-    template<typename IntermediateValueType>
-    void start(IntermediateValueType const &)
+    template<typename ReduceTaskKeyType>
+    void start(ReduceTaskKeyType const &)
     { }
 
-    template<typename IntermediateValueType, typename IntermediateStore>
-    void finish(IntermediateValueType const &, IntermediateStore &)
+    template<typename ReduceTaskKeyType, typename IntermediateStore>
+    void finish(ReduceTaskKeyType const &, IntermediateStore &)
     { }
 
-    template<typename IntermediateValueType>
-    void operator()(IntermediateValueType const &)
+    template<typename ReduceTaskKeyType>
+    void operator()(ReduceTaskKeyType const &)
     { }
 };
 
