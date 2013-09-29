@@ -5,7 +5,20 @@
 
 namespace mapreduce {
 
-template<typename T> size_t length(T const &str);
+template<typename T> uintmax_t    const length(T const &str);
+template<typename T> char const * const data(T const &str);
+
+template<>
+inline uintmax_t const length(std::string const &str)
+{
+    return str.length();
+}
+
+template<>
+inline char const * const data(std::string const &str)
+{
+    return str.data();
+}
 
 template<typename MapKey, typename MapValue>
 class map_task
@@ -66,9 +79,6 @@ class job : detail::noncopyable
 
             // consolidating map intermediate results can save time by
             // aggregating the mapped valued at mapper
-#ifdef DEBUG_TRACE_OUTPUT
-            std::clog << "\nRunning combiner...";
-#endif
             combiner_type instance;
             intermediate_store_.combine(instance);
 
@@ -264,12 +274,6 @@ class job : detail::noncopyable
     specification     const &specification_;
     intermediate_store_type  intermediate_store_;
 };
-
-template<>
-inline size_t length(std::string const &str)
-{
-    return str.length();
-}
 
 }   // namespace mapreduce
 

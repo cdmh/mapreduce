@@ -54,7 +54,17 @@ class joined_thread_group : public std::vector<std::thread>
     void join_all(void)
     {
         for (auto &thread : *this)
-            thread.join();
+        {
+            try
+            {
+                thread.join();
+            }
+            catch (std::exception &)
+            {
+                // std::thread seems to throw "invalid argument" if
+                // the thread has already gone away when we call join()
+            }
+        }
     }
 };
 
@@ -128,10 +138,10 @@ struct results
 #include <boost/throw_exception.hpp>
 #include "detail/platform.hpp"
 #include "detail/mergesort.hpp"
+#include "detail/null_combiner.hpp"
 #include "detail/intermediates.hpp"
 #include "detail/schedule_policy.hpp"
 #include "detail/datasource.hpp"
-#include "detail/null_combiner.hpp"
 #include "detail/job.hpp"
 
 namespace mapreduce {

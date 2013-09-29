@@ -123,7 +123,7 @@ class cpu_parallel : mapreduce::detail::noncopyable
         }
         map_threads.join_all();
         result.map_runtime = std::chrono::system_clock::now() - start_time;
-        result.counters.actual_map_tasks    = map_tasks;
+        result.counters.actual_map_tasks = map_tasks;
     }
 
     void intermediate(Job &job, results &result)

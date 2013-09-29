@@ -15,13 +15,6 @@ struct null_combiner;
 
 namespace detail {
 
-template<typename T>
-inline
-uintmax_t const length(T const &value)
-{
-    return value.length();
-}
-
 struct file_lines_comp
 {
     template<typename T>
@@ -82,7 +75,7 @@ struct file_merger
                         std::string line;
                         std::getline(*it->first, line, '\r');
 
-                        if (detail::length(line) > 0)
+                        if (length(line) > 0)
                         {
                             std::istringstream l(line);
                             l >> it->second;
@@ -567,21 +560,21 @@ class local_disk : detail::noncopyable
         std::ifstream infile(filename.c_str());
         while (!(infile >> kv).eof())
         {
-            if (kv.first != last_key  &&  detail::length(kv.first) > 0)
+            if (kv.first != last_key  &&  length(kv.first) > 0)
             {
-                if (detail::length(last_key) > 0)
+                if (length(last_key) > 0)
                 {
                     callback(last_key, values.begin(), values.end());
                     values.clear();
                 }
-                if (detail::length(kv.first) > 0)
+                if (length(kv.first) > 0)
                     std::swap(kv.first, last_key);
             }
 
             values.push_back(kv.second);
         }
 
-        if (detail::length(last_key) > 0)
+        if (length(last_key) > 0)
             callback(last_key, values.begin(), values.end());
 
         infile.close();

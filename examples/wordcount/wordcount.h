@@ -42,7 +42,8 @@ struct map_task : public mapreduce::map_task<
     }
 };
 
-struct reduce_task : public mapreduce::reduce_task<std::string, unsigned>
+template<typename KeyType>
+struct reduce_task : public mapreduce::reduce_task<KeyType, unsigned>
 {
     template<typename Runtime, typename It>
     void operator()(Runtime &runtime, key_type const &key, It it, It const ite) const
@@ -51,26 +52,30 @@ struct reduce_task : public mapreduce::reduce_task<std::string, unsigned>
     }
 };
 
+template<typename ReduceTask>
 class combiner
 {
   public:
-    void start(reduce_task::key_type const &)
+    void start(typename ReduceTask::key_type const &)
     {
         total_ = 0;
     }
 
     template<typename IntermediateStore>
-    void finish(reduce_task::key_type const &key, IntermediateStore &intermediate_store)
+    void finish(typename ReduceTask::key_type const &key, IntermediateStore &intermediate_store)
     {
         if (total_ > 0)
         {
             // the combiner needs to emit an intermediate result, not a final result, so
             // here we convert the type from std::string (final) to intermediate (ptr/length)
-            intermediate_store.insert(std::make_pair(key.c_str(), key.length()), total_);
+            intermediate_store.insert(
+                std::make_pair(
+                    mapreduce::data(key),
+                    mapreduce::length(key)), total_);
         }
     }
 
-    void operator()(reduce_task::value_type const &value)
+    void operator()(typename ReduceTask::value_type const &value)
     {
         total_ += value;
     }

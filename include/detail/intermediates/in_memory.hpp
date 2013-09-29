@@ -9,6 +9,30 @@ namespace mapreduce {
 
 namespace intermediates {
 
+namespace detail {
+
+using namespace ::mapreduce::detail;
+
+template<typename ReduceKeyType, typename MapValueType>
+inline ReduceKeyType convert(MapValueType const &value)
+{
+    return value;
+}
+
+template<>
+inline std::string convert(std::pair<char const *, std::uintmax_t> const &value)
+{
+    return std::string(value.first, value.second);
+}
+
+template<>
+inline std::pair<char const *, std::uintmax_t> convert(std::string const &value)
+{
+    return std::make_pair(value.c_str(), value.length());
+}
+
+}   // namespace detail
+
 template<typename MapTask, typename ReduceTask>
 class reduce_null_output
 {
@@ -22,9 +46,10 @@ class reduce_null_output
     {
     }
 
-    void operator()(typename ReduceTask::key_type   const &/*key*/,
-                    typename ReduceTask::value_type const &/*value*/)
+    bool const operator()(typename ReduceTask::key_type   const &/*key*/,
+                          typename ReduceTask::value_type const &/*value*/)
     {
+        return true;
     }
 };
 
@@ -215,7 +240,7 @@ class in_memory : detail::noncopyable
 
         for (typename map_type::iterator it=other_map.begin(); it!=other_map.end(); ++it)
         {
-            typename map_type::iterator iti = map.insert(make_pair(it->first, typename map_type::mapped_type())).first;
+            typename map_type::iterator iti = map.insert(std::make_pair(it->first, typename map_type::mapped_type())).first;
             std::copy(it->second.begin(), it->second.end(), std::back_inserter(iti->second));
         }
     }
@@ -227,24 +252,27 @@ class in_memory : detail::noncopyable
         other.intermediates_.clear();
     }
 
+    // receive final result
     template<typename StoreResult>
     bool const insert(typename reduce_task_type::key_type   const &key,
                       typename reduce_task_type::value_type const &value,
                       StoreResult &store_result)
     {
-        store_result(key, value);
-        return insert(key, value);
+        return store_result(key, value)
+           &&  insert(detail::convert<map_task_type::value_type>(key), value);
     }
 
-    bool const insert(typename reduce_task_type::key_type   const &key,
+    // receive intermediate result
+    bool const insert(typename map_task_type::value_type    const &key,
                       typename reduce_task_type::value_type const &value)
     {
         unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
         typename intermediates_t::value_type &map = intermediates_[partition];
 
+        auto reduce_key = detail::convert<typename reduce_task_type::key_type>(key);
         map.insert(
-            make_pair(
-                key,
+            std::make_pair(
+                reduce_key,
                 typename intermediates_t::value_type::mapped_type())).first->second.push_back(value);
 
         return true;
@@ -272,6 +300,10 @@ class in_memory : detail::noncopyable
                 fn_obj.finish(it1->first, *this);
             }
         }
+    }
+
+    void combine(null_combiner &)
+    {
     }
 
   private:

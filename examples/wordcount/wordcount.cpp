@@ -24,11 +24,15 @@
 #include <iostream>
 
 template<>
-inline
-uintmax_t const
-mapreduce::detail::length(std::pair<char const *, uintmax_t> const &string)
+inline uintmax_t const mapreduce::length(std::pair<char const *, uintmax_t> const &string)
 {
     return string.second;
+}
+
+template<>
+inline char const * const mapreduce::data(std::pair<char const *, uintmax_t> const &string)
+{
+    return string.first;
 }
 
 
@@ -87,6 +91,9 @@ double const sum(T const &durations)
 
 void write_stats(mapreduce::results const &result)
 {
+    if (result.map_times.size() == 0  || result.reduce_times.size() == 0)
+        return;
+
     std::cout << std::endl << "\nMapReduce statistics:";
     std::cout << "\n  MapReduce job runtime                     : " << result.job_runtime.count() << "s of which...";
     std::cout << "\n    Map phase runtime                       : " << result.map_runtime.count() << "s";
@@ -182,7 +189,7 @@ void run_wordcount(mapreduce::specification const &spec)
     }
     catch (std::exception &e)
     {
-        std::cout << std::endl << "Error: " << e.what();
+        std::cout << "\nError: " << e.what();
     }
 }
 
@@ -260,26 +267,61 @@ int main(int argc, char **argv)
         spec.reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
 
     std::cout << "\n" << std::max(1U, std::thread::hardware_concurrency()) << " CPU cores";
-#if 0
+
+    /*
+      the tests before are in pairs; tests running without a
+      functional combiner, and then with a combiner object
+    */
+
+    // test using a reduce key of a char pointer and length, to
+    // a memory-mapped buffer of text. this will work only for
+    // in-memory intermediates where the  memory-mapped buffer
+    // lifetime exceeds the duration of the map reduce job
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task> >(spec);
+            wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>> >(spec);
 
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task,
-            wordcount::combiner> >(spec);
-#endif
+            wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>,
+            wordcount::combiner<wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>>>>(spec);
+
+    // these are functionally the same as the jobs above, but use std::string
+    // as the reduce key so the char buffer is owned by the intermediate store.
+    // this is less efficient, but more robust if the memory-mapped buffer
+    // may go out of scope
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>> >(spec);
 
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task,
-            mapreduce::null_combiner,//            mapreduce::null_combiner, needs to work for here too
+            wordcount::reduce_task<std::string>,
+            wordcount::combiner<wordcount::reduce_task<std::string>>>>(spec);
+
+    // because the intermediates are stored on disk and read back during the reduce
+    // phase, the reduce keys must own their own storage, so std::string is used
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>,
+            mapreduce::null_combiner,
             mapreduce::datasource::directory_iterator<wordcount::map_task>,
-            mapreduce::intermediates::local_disk<wordcount::map_task, wordcount::reduce_task>>>(spec);
+            mapreduce::intermediates::local_disk<
+                wordcount::map_task, wordcount::reduce_task<std::string>>>>(spec);
+
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>,
+            wordcount::combiner<wordcount::reduce_task<std::string>>,
+            mapreduce::datasource::directory_iterator<wordcount::map_task>,
+            mapreduce::intermediates::local_disk<
+                wordcount::map_task, wordcount::reduce_task<std::string>>>>(spec);
 
     return 0;
 }
