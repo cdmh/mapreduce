@@ -162,20 +162,18 @@ class reduce_file_output
 template<
     typename MapTask,
     typename ReduceTask,
-    typename KeyType     = typename ReduceTask::key_type,
-    typename PartitionFn = mapreduce::hash_partitioner,
-    typename CombineFile = mapreduce::detail::file_key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
-    typename MergeFn     = mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
+    typename KeyType         = typename ReduceTask::key_type,
+    typename PartitionFn     = hash_partitioner,
+    typename StoreResultType = reduce_file_output<MapTask, ReduceTask>,
+    typename CombineFile     = detail::file_key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
+    typename MergeFn         = detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
 class local_disk : detail::noncopyable
 {
   public:
-    typedef MapTask    map_task_type;
-    typedef ReduceTask reduce_task_type;
-    typedef KeyType    key_type;
-
-    typedef
-    reduce_file_output<MapTask, ReduceTask>
-    store_result_type;
+    typedef MapTask         map_task_type;
+    typedef ReduceTask      reduce_task_type;
+    typedef KeyType         key_type;
+    typedef StoreResultType store_result_type;
 
     typedef
     std::pair<
