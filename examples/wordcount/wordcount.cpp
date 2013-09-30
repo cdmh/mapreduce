@@ -280,13 +280,16 @@ int main(int argc, char **argv)
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>> >(spec);
+            wordcount::reduce_task<
+                std::pair<char const *, std::uintmax_t>>> >(spec);
 
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
             wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>,
-            wordcount::combiner<wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>>>>(spec);
+            wordcount::combiner<
+                wordcount::reduce_task<
+                    std::pair<char const *, std::uintmax_t>>>>>(spec);
 
     // these are functionally the same as the jobs above, but use std::string
     // as the reduce key so the char buffer is owned by the intermediate store.
@@ -301,7 +304,8 @@ int main(int argc, char **argv)
         mapreduce::job<
             wordcount::map_task,
             wordcount::reduce_task<std::string>,
-            wordcount::combiner<wordcount::reduce_task<std::string>>>>(spec);
+            wordcount::combiner<
+                wordcount::reduce_task<std::string>>>>(spec);
 
     // because the intermediates are stored on disk and read back during the reduce
     // phase, the reduce keys must own their own storage, so std::string is used
@@ -312,7 +316,9 @@ int main(int argc, char **argv)
             mapreduce::null_combiner,
             mapreduce::datasource::directory_iterator<wordcount::map_task>,
             mapreduce::intermediates::local_disk<
-                wordcount::map_task, wordcount::reduce_task<std::string>>>>(spec);
+                wordcount::map_task,
+                wordcount::reduce_task<std::string>,
+                wordcount::map_task::value_type>>>(spec);
 
     run_wordcount<
         mapreduce::job<
@@ -321,7 +327,9 @@ int main(int argc, char **argv)
             wordcount::combiner<wordcount::reduce_task<std::string>>,
             mapreduce::datasource::directory_iterator<wordcount::map_task>,
             mapreduce::intermediates::local_disk<
-                wordcount::map_task, wordcount::reduce_task<std::string>>>>(spec);
+                wordcount::map_task,
+                wordcount::reduce_task<std::string>,
+                wordcount::map_task::value_type>>>(spec);
 
     return 0;
 }

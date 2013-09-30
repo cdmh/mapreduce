@@ -23,7 +23,7 @@ struct map_task : public mapreduce::map_task<
             {
                 if ((ch < 'A' || ch > 'Z') && ch != '\'')
                 {
-                    runtime.emit_intermediate(std::make_pair(word,ptr-word), 1);
+                    runtime.emit_intermediate(std::pair<char const *, std::uintmax_t>(word,ptr-word), 1);
                     in_word = false;
                 }
             }
@@ -37,7 +37,7 @@ struct map_task : public mapreduce::map_task<
         if (in_word)
         {
             assert(ptr > word);
-            runtime.emit_intermediate(std::make_pair(word,ptr-word), 1);
+            runtime.emit_intermediate(std::pair<char const *, std::uintmax_t>(word,ptr-word), 1);
         }
     }
 };
@@ -71,7 +71,8 @@ class combiner
             intermediate_store.insert(
                 std::make_pair(
                     mapreduce::data(key),
-                    mapreduce::length(key)), total_);
+                    mapreduce::length(key)),
+                total_);
         }
     }
 

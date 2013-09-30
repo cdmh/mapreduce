@@ -9,29 +9,21 @@ namespace mapreduce {
 
 namespace intermediates {
 
-namespace detail {
-
-using namespace ::mapreduce::detail;
-
 template<typename ReduceKeyType, typename MapValueType>
-inline ReduceKeyType convert(MapValueType const &value)
+inline ReduceKeyType make_intermediate_key(MapValueType const &value);
+
+template<>
+inline std::string make_intermediate_key(std::pair<char const *, std::uintmax_t> const &value)
 {
-    return value;
+    assert(value.second < std::numeric_limits<std::string::size_type>::max()); // assert on overflow
+    return std::string(value.first, (std::string::size_type)value.second);
 }
 
 template<>
-inline std::string convert(std::pair<char const *, std::uintmax_t> const &value)
-{
-    return std::string(value.first, value.second);
-}
-
-template<>
-inline std::pair<char const *, std::uintmax_t> convert(std::string const &value)
+inline std::pair<char const *, std::uintmax_t> make_intermediate_key(std::string const &value)
 {
     return std::make_pair(value.c_str(), value.length());
 }
-
-}   // namespace detail
 
 template<typename MapTask, typename ReduceTask>
 class reduce_null_output
@@ -57,28 +49,30 @@ class reduce_null_output
 template<
     typename MapTask,
     typename ReduceTask,
-    typename PartitionFn=mapreduce::hash_partitioner,
-    typename KeyCompare=std::less<typename ReduceTask::key_type> >
+    typename KeyType     = typename ReduceTask::key_type,
+    typename PartitionFn = mapreduce::hash_partitioner,
+    typename KeyCompare  = std::less<typename ReduceTask::key_type>,
+    typename StoreResult = reduce_null_output<MapTask, ReduceTask>
+>
 class in_memory : detail::noncopyable
 {
+  public:
+    typedef KeyType                         key_type;
+    typedef typename ReduceTask::value_type value_type;
+    typedef MapTask                         map_task_type;
+    typedef ReduceTask                      reduce_task_type;
+    typedef StoreResult                     store_result_type;
+
   private:
     typedef
     std::vector<
         std::map<
-            typename ReduceTask::key_type,
-            std::list<typename ReduceTask::value_type>,
-            KeyCompare > >
+            KeyType, std::list<value_type>,KeyCompare>>
     intermediates_t;
 
   public:
-    typedef MapTask    map_task_type;
-    typedef ReduceTask reduce_task_type;
-    typedef reduce_null_output<MapTask, ReduceTask> store_result_type;
-
     typedef
-    std::pair<
-        typename reduce_task_type::key_type,
-        typename reduce_task_type::value_type>
+    std::pair<KeyType, value_type>
     keyvalue_t;
 
     class const_result_iterator
@@ -188,7 +182,7 @@ class in_memory : detail::noncopyable
     };
     friend class const_result_iterator;
 
-    in_memory(unsigned const num_partitions=1)
+    explicit in_memory(unsigned const num_partitions=1)
       : num_partitions_(num_partitions)
     {
         intermediates_.resize(num_partitions_);
@@ -252,6 +246,12 @@ class in_memory : detail::noncopyable
         other.intermediates_.clear();
     }
 
+    template<typename T>
+    bool const insert(T const &key, typename reduce_task_type::value_type const &value)
+    {
+        return insert(make_intermediate_key<key_type>(key), value);
+    }
+
     // receive final result
     template<typename StoreResult>
     bool const insert(typename reduce_task_type::key_type   const &key,
@@ -259,20 +259,19 @@ class in_memory : detail::noncopyable
                       StoreResult &store_result)
     {
         return store_result(key, value)
-           &&  insert(detail::convert<map_task_type::value_type>(key), value);
+           &&  insert(key, value);
     }
 
     // receive intermediate result
-    bool const insert(typename map_task_type::value_type    const &key,
+    bool const insert(typename key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
         unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
         typename intermediates_t::value_type &map = intermediates_[partition];
 
-        auto reduce_key = detail::convert<typename reduce_task_type::key_type>(key);
         map.insert(
             std::make_pair(
-                reduce_key,
+                key,
                 typename intermediates_t::value_type::mapped_type())).first->second.push_back(value);
 
         return true;

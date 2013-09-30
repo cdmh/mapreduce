@@ -145,7 +145,7 @@ struct shared_ptr_indirect_less
 template<typename Record>
 bool const file_key_combiner(std::string const &in,
                              std::string const &out,
-                             unsigned    const  max_lines = 10000000)
+                             uint32_t    const  max_lines = 4294967000U)
 {
 #ifdef DEBUG_TRACE_OUTPUT
     std::clog << "\ncombining file keys " << in << "\n               into " << out;
@@ -167,7 +167,7 @@ bool const file_key_combiner(std::string const &in,
         typedef std::map<std::shared_ptr<Record>, unsigned, shared_ptr_indirect_less<Record> > lines_t;
         lines_t lines;
 
-        for (unsigned loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
+        for (uint32_t loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
         {
             if (infile.fail()  ||  infile.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred reading the input file."));

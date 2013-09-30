@@ -162,6 +162,7 @@ class reduce_file_output
 template<
     typename MapTask,
     typename ReduceTask,
+    typename KeyType     = typename ReduceTask::key_type,
     typename PartitionFn = mapreduce::hash_partitioner,
     typename CombineFile = mapreduce::detail::file_key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
     typename MergeFn     = mapreduce::detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
@@ -170,6 +171,7 @@ class local_disk : detail::noncopyable
   public:
     typedef MapTask    map_task_type;
     typedef ReduceTask reduce_task_type;
+    typedef KeyType    key_type;
 
     typedef
     reduce_file_output<MapTask, ReduceTask>
@@ -287,7 +289,7 @@ class local_disk : detail::noncopyable
         {
         }
 
-        intermediate_file_info(std::string const &fname)
+        intermediate_file_info(std::string fname)
           : filename(fname)
         {
         }
@@ -442,11 +444,11 @@ class local_disk : detail::noncopyable
                       StoreResult                                 &store_result)
     {
         store_result(key, value);
-        return true;//!!!!insert(key, value);
+        return true;
     }
 
     // receive intermediate result
-    bool const insert(typename map_task_type::value_type    const &key,
+    bool const insert(typename key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
         unsigned const partition = partitioner_(key, num_partitions_);

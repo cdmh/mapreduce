@@ -85,8 +85,8 @@ class job : detail::noncopyable
             return *this;
         }
 
-        bool const emit_intermediate(typename map_task_type::value_type    const &key,
-                                     typename reduce_task_type::value_type const &value)
+        template<typename T>
+        bool const emit_intermediate(T const &key, typename reduce_task_type::value_type const &value)
         {
             return intermediate_store_.insert(key, value);
         }
