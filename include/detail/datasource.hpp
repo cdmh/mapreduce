@@ -64,7 +64,7 @@ struct file_handler<
 {
     struct detail
     {
-        boost::iostreams::mapped_file mmf;    // memory mapped file
+        boost::iostreams::mapped_file mmf;  // memory mapped file
         std::uintmax_t              size;   // size of the file
         std::uintmax_t              offset; // offset to map next time
     };
@@ -120,9 +120,9 @@ file_handler<
     }
     else
     {
-        BOOST_ASSERT(key == data_->current_file);
+        assert(key == data_->current_file);
         it = data_->maps.find(key);
-        BOOST_ASSERT(it != data_->maps.end());
+        assert(it != data_->maps.end());
 
         std::uintmax_t const new_offset = std::min(it->second->offset+specification_.max_file_segment_size, it->second->size); 
         value.first        = it->second->mmf.const_data() + it->second->offset;

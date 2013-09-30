@@ -193,7 +193,7 @@ class local_disk : detail::noncopyable
         explicit const_result_iterator(local_disk const *outer)
           : outer_(outer)
         {
-            BOOST_ASSERT(outer_);
+            assert(outer_);
             kvlist_.resize(outer_->num_partitions_);
         }
 
@@ -227,7 +227,7 @@ class local_disk : detail::noncopyable
                             std::ios_base::binary),
                         keyvalue_t());
 
-                BOOST_ASSERT(kvlist_[loop].first->is_open());
+                assert(kvlist_[loop].first->is_open());
                 read_record(
                     *kvlist_[loop].first,
                     kvlist_[loop].second.first,
@@ -490,7 +490,7 @@ class local_disk : detail::noncopyable
 
     void merge_from(local_disk &other)
     {
-        BOOST_ASSERT(num_partitions_ == other.num_partitions_);
+        assert(num_partitions_ == other.num_partitions_);
         for (unsigned partition=0; partition<num_partitions_; ++partition)
         {
             typename intermediates_t::iterator ito = other.intermediate_files_.find(partition);
@@ -545,7 +545,7 @@ class local_disk : detail::noncopyable
 #endif
 
         typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        BOOST_ASSERT(it != intermediate_files_.end());
+        assert(it != intermediate_files_.end());
 
         std::string filename;
         std::swap(filename, it->second->filename);

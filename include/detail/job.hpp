@@ -38,18 +38,18 @@ class reduce_task
 
 template<typename MapTask,
          typename ReduceTask,
-         typename Combiner=null_combiner,
-         typename Datasource=datasource::directory_iterator<MapTask>,
-         typename IntermediateStore=intermediates::in_memory<MapTask, ReduceTask>,
-         typename StoreResult=typename IntermediateStore::store_result_type>
+         typename Combiner          = null_combiner,
+         typename Datasource        = datasource::directory_iterator<MapTask>,
+         typename IntermediateStore = intermediates::in_memory<MapTask, ReduceTask>,
+         typename StoreResult       = typename IntermediateStore::store_result_type>
 class job : detail::noncopyable
 {
   public:
-    typedef MapTask                 map_task_type;
-    typedef ReduceTask              reduce_task_type;
-    typedef Datasource              datasource_type;
-    typedef IntermediateStore       intermediate_store_type;
-    typedef Combiner                combiner_type;
+    typedef MapTask           map_task_type;
+    typedef ReduceTask        reduce_task_type;
+    typedef Combiner          combiner_type;
+    typedef Datasource        datasource_type;
+    typedef IntermediateStore intermediate_store_type;
 
     typedef
     typename intermediate_store_type::const_result_iterator
@@ -59,7 +59,7 @@ class job : detail::noncopyable
     typename intermediate_store_type::keyvalue_t
     keyvalue_t;
 
-  public:
+  private:
     class map_task_runner : detail::noncopyable
     {
       public:
@@ -143,6 +143,7 @@ class job : detail::noncopyable
         StoreResult              store_result_;
     };
 
+  public:
     job(datasource_type &datasource, specification const &spec)
       : datasource_(datasource),
         specification_(spec),
@@ -183,7 +184,7 @@ class job : detail::noncopyable
     void run(results &result)
     {
         SchedulePolicy schedule;
-        this->run(schedule, result);
+        run(schedule, result);
     }
 
     template<typename SchedulePolicy>

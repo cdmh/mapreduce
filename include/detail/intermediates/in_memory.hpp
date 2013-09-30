@@ -29,9 +29,6 @@ template<typename MapTask, typename ReduceTask>
 class reduce_null_output
 {
   public:
-    reduce_null_output()
-    { }
-
     reduce_null_output(std::string const &/*output_filespec*/,
                        unsigned    const  /*partition*/,
                        unsigned    const  /*num_partitions*/)
@@ -83,11 +80,11 @@ class in_memory : detail::noncopyable
     {
         friend class boost::iterator_core_access;
 
-      protected:
+      private:
         explicit const_result_iterator(in_memory const *outer)
           : outer_(outer)
         {
-            BOOST_ASSERT(outer_);
+            assert(outer_);
             iterators_.resize(outer_->num_partitions_);
         }
 
@@ -200,7 +197,8 @@ class in_memory : detail::noncopyable
 
     void swap(in_memory &other)
     {
-        std::swap(intermediates_, other.intermediates_);
+        using std::swap;
+        swap(intermediates_, other.intermediates_);
     }
 
     void run_intermediate_results_shuffle(unsigned const /*partition*/)
@@ -213,10 +211,8 @@ class in_memory : detail::noncopyable
         typename intermediates_t::value_type map;
         std::swap(map, intermediates_[partition]);
 
-        for (typename intermediates_t::value_type::const_iterator it1=map.begin(); it1!=map.end(); ++it1)
-        {
-            callback(it1->first, it1->second.begin(), it1->second.end());
-        }
+        for (auto const &result : map)
+            callback(result.first, result.second.begin(), result.second.end());
     }
 
     void merge_from(unsigned partition, in_memory &other)
@@ -232,10 +228,18 @@ class in_memory : detail::noncopyable
             return;
         }
 
-        for (typename map_type::iterator it=other_map.begin(); it!=other_map.end(); ++it)
+        for (auto const &result : other_map)
         {
-            typename map_type::iterator iti = map.insert(std::make_pair(it->first, typename map_type::mapped_type())).first;
-            std::copy(it->second.begin(), it->second.end(), std::back_inserter(iti->second));
+            auto iti =
+                map.insert(
+                    std::make_pair(
+                        result.first,
+                        typename map_type::mapped_type())).first;
+
+            std::copy(
+                result.second.begin(),
+                result.second.end(),
+                std::back_inserter(iti->second));
         }
     }
 
@@ -258,8 +262,7 @@ class in_memory : detail::noncopyable
                       typename reduce_task_type::value_type const &value,
                       StoreResult &store_result)
     {
-        return store_result(key, value)
-           &&  insert(key, value);
+        return store_result(key, value)  &&  insert(key, value);
     }
 
     // receive intermediate result
@@ -267,12 +270,13 @@ class in_memory : detail::noncopyable
                       typename reduce_task_type::value_type const &value)
     {
         unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
-        typename intermediates_t::value_type &map = intermediates_[partition];
+        auto &map = intermediates_[partition];
 
+        typedef typename intermediates_t::value_type::mapped_type mapped_type;
         map.insert(
             std::make_pair(
                 key,
-                typename intermediates_t::value_type::mapped_type())).first->second.push_back(value);
+                mapped_type())).first->second.push_back(value);
 
         return true;
     }
@@ -284,19 +288,14 @@ class in_memory : detail::noncopyable
         intermediates.resize(num_partitions_);
         std::swap(intermediates_, intermediates);
 
-        for (typename intermediates_t::const_iterator it=intermediates.begin(); it!=intermediates.end(); ++it)
+        for (auto const &intermediate : intermediates)
         {
-            for (typename intermediates_t::value_type::const_iterator it1=it->begin(); it1!=it->end(); ++it1)
+            for (auto const &kv : intermediate)
             {
-                fn_obj.start(it1->first);
-
-                for (typename intermediates_t::value_type::mapped_type::const_iterator it2 = it1->second.begin();
-                     it2 != it1->second.end();
-                     ++it2)
-                {
-                    fn_obj(*it2);
-                }
-                fn_obj.finish(it1->first, *this);
+                fn_obj.start(kv.first);
+                for (auto const &value : kv.second)
+                    fn_obj(value);
+                fn_obj.finish(kv.first, *this);
             }
         }
     }
