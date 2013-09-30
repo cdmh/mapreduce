@@ -163,7 +163,7 @@ class job : detail::noncopyable
 
     bool const get_next_map_key(void *&key)
     {
-        std::auto_ptr<typename map_task_type::key_type> next_key(new typename map_task_type::key_type);
+        std::unique_ptr<typename map_task_type::key_type> next_key(new typename map_task_type::key_type);
         if (!datasource_.setup_key(*next_key))
             return false;
         key = next_key.release();
@@ -204,7 +204,7 @@ class job : detail::noncopyable
         {
             ++result.counters.map_keys_executed;
 
-            std::auto_ptr<typename map_task_type::key_type>
+            std::unique_ptr<typename map_task_type::key_type>
                 map_key_ptr(
                     reinterpret_cast<
                         typename map_task_type::key_type *>(key));
