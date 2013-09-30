@@ -37,7 +37,7 @@ class sequential
     {
         auto const start_time(std::chrono::system_clock::now());
 
-        void *key = 0;
+        typename Job::map_task_type::key_type *key = 0;
         detail::null_lock nolock;
         while (job.get_next_map_key(key)  &&  job.run_map_task(key, result, nolock))
             ;

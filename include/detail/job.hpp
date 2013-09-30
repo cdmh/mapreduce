@@ -161,7 +161,7 @@ class job : detail::noncopyable
         return intermediate_store_.end_results();
     }
 
-    bool const get_next_map_key(void *&key)
+    bool const get_next_map_key(typename map_task_type::key_type *&key)
     {
         std::unique_ptr<typename map_task_type::key_type> next_key(new typename map_task_type::key_type);
         if (!datasource_.setup_key(*next_key))
@@ -196,7 +196,7 @@ class job : detail::noncopyable
     }
 
     template<typename Sync>
-    bool const run_map_task(void *key, results &result, Sync &sync)
+    bool const run_map_task(typename map_task_type::key_type *key, results &result, Sync &sync)
     {
         auto const start_time = std::chrono::system_clock::now();
 
@@ -204,11 +204,7 @@ class job : detail::noncopyable
         {
             ++result.counters.map_keys_executed;
 
-            std::unique_ptr<typename map_task_type::key_type>
-                map_key_ptr(
-                    reinterpret_cast<
-                        typename map_task_type::key_type *>(key));
-
+            std::unique_ptr<typename map_task_type::key_type> map_key_ptr(key);
             typename map_task_type::key_type &map_key = *map_key_ptr;
 
             // get some data
