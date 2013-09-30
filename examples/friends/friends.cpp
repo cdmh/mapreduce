@@ -165,11 +165,13 @@ int main(int argc, char *argv[])
 #endif
     std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << "s with " << std::distance(job.begin_results(), job.end_results()) << " results\n\n";
 
-    for (friend_graph::job::const_result_iterator it = job.begin_results();
-         it!=job.end_results();
-         ++it)
+    for (auto it=job.begin_results(); it!=job.end_results(); ++it)
     {
-        std::cout << friend_graph::names[it->first.first] << " and " << friend_graph::names[it->first.second] << " are both friends with: ";
+        std::cout << friend_graph::names[it->first.first]
+                  << " and "
+                  << friend_graph::names[it->first.second]
+                  << " are both friends with: ";
+
         for (unsigned const value : it->second)
             std::cout << friend_graph::names[value] << " ";
         std::cout << "\n";
