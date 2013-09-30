@@ -169,7 +169,7 @@ bool const file_key_combiner(std::string const &in,
 
         for (uint32_t loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
         {
-            if (infile.fail()  ||  infile.bad())
+            if (infile.fail())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred reading the input file."));
 
             std::string line;
@@ -188,7 +188,7 @@ bool const file_key_combiner(std::string const &in,
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
         for (typename lines_t::iterator it=lines.begin(); it!=lines.end(); ++it)
         {
-            if (file.fail()  ||  file.bad())
+            if (file.fail())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
 
             it->first->write_multiple_values(file, it->second);

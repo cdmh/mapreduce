@@ -373,7 +373,7 @@ class local_disk : detail::noncopyable
                 for (unsigned loop=0; loop<count; ++loop)
                 {
                     *this << line << "\r";
-                    if (bad()  ||  fail())
+                    if (fail())
                         return false;
                 }
                 return true;
@@ -610,7 +610,7 @@ class local_disk : detail::noncopyable
         std::pair<typename reduce_task_type::key_type,
                   typename reduce_task_type::value_type> keyvalue;
         infile >> keyvalue;
-        if (infile.eof()  ||  infile.bad())
+        if (infile.eof()  ||  infile.fail())
             return false;
 
         key   = keyvalue.first;
