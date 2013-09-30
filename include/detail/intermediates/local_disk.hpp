@@ -159,13 +159,35 @@ class reduce_file_output
 };
 
 
+template<typename T>
+struct key_combiner : public T
+{
+    // the file_key_combiner will call this function to write multiple
+    // occurances of a key/value pair to an output stream. the generic
+    // case is to write the same key/value pair multiple times
+    void write_multiple_values(std::ostream &out, unsigned count)
+    {
+        if (count == 1)
+            out << *this << "\r";
+        else
+        {
+            std::ostringstream stream;
+            stream << *this;
+            std::string record = stream.str();
+            for (unsigned loop=0; loop<count; ++loop)
+                out << record << "\r";
+        }
+    }
+};
+
+
 template<
     typename MapTask,
     typename ReduceTask,
     typename KeyType         = typename ReduceTask::key_type,
     typename PartitionFn     = hash_partitioner,
     typename StoreResultType = reduce_file_output<MapTask, ReduceTask>,
-    typename CombineFile     = detail::file_key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> >,
+    typename CombineFile     = detail::file_key_combiner<key_combiner<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type>>>,
     typename MergeFn         = detail::file_merger<std::pair<typename ReduceTask::key_type, typename ReduceTask::value_type> > >
 class local_disk : detail::noncopyable
 {

@@ -85,6 +85,24 @@ class combiner
     unsigned total_;
 };
 
+
+// Instead of writing
+//  This  2
+//  This  2
+//  This  2
+// we multiply the frequency by the the count and write:
+//  This  6
+template<typename T>
+struct key_combiner : public T
+{
+    void write_multiple_values(std::ostream &out, unsigned count)
+    {
+        T temp(*this);
+        temp.second *= count;
+        out << temp << "\r";
+    }
+};
+
 }   // namespace wordcount
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy

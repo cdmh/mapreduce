@@ -191,8 +191,7 @@ bool const file_key_combiner(std::string const &in,
             if (file.fail()  ||  file.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
 
-            it->first->second *= it->second;
-            file << *it->first << "\r";
+            it->first->write_multiple_values(file, it->second);
         }
     }
     infile.close();
