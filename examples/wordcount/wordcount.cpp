@@ -35,7 +35,17 @@ inline char const * const mapreduce::data(std::pair<char const *, uintmax_t> con
     return string.first;
 }
 
+template<>
+inline
+unsigned const
+mapreduce::hash_partitioner::operator()(
+    std::pair<char const *, std::uintmax_t> const &key,
+    unsigned partitions) const
+{
+    return boost::hash_range(key.first, key.first+key.second) % partitions;
+}
 
+// use case insensitive string comparison for matching words
 template<>
 bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
          std::pair<char const *, std::uintmax_t> const &first,
@@ -55,27 +65,17 @@ bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
     return (first.second < second.second);
 }
 
-bool operator==(std::pair<char const *, std::uintmax_t> const &first,
-                std::pair<char const *, std::uintmax_t> const &second)
-{
-    if (first.second != second.second)
-        return false;
-    else if (first.second == 0  &&  first.first == 0  &&  second.first == 0)
-        return true;
-
-#if defined(BOOST_MSVC)
-    return (strnicmp(first.first, second.first, first.second) == 0);
-#else
-    return (strncasecmp(first.first, second.first, first.second) == 0);
-#endif
-}
-
-
 template<>
-unsigned const mapreduce::hash_partitioner::operator()(std::pair<char const *, std::uintmax_t> const &key, unsigned partitions) const
+bool std::less<std::string>::operator()(
+         std::string const &first,
+         std::string const &second) const
 {
-    return boost::hash_range(key.first, key.first+key.second) % partitions;
+    return
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>(first.c_str(), first.length()),
+            std::pair<char const *, std::uintmax_t>(second.c_str(), second.length()));
 }
+
 
 
 namespace {
@@ -123,8 +123,7 @@ void write_stats(mapreduce::results const &result)
 
 std::ostream &operator<<(std::ostream &o, std::pair<char const *, uintmax_t> const &str)
 {
-    for (uintmax_t loop=0; loop<str.second; ++loop)
-        o << (char)::tolower(str.first[loop]);
+    std::copy(str.first, str.first+str.second, std::ostream_iterator<char>(o,""));
     return o;
 }
 
@@ -141,7 +140,7 @@ void write_frequency_table(Job const &job)
         frequencies_t::reverse_iterator it_smallest = frequencies.rbegin();
         for (++it; it!=ite; ++it)
         {
-            if (frequencies.size() < 10)    // show top 10
+            if (frequencies.size() < 1000)    // show top 10
             {
                 frequencies.push_back(*it);
                 if (it->second < it_smallest->second)
