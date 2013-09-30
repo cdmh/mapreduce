@@ -1,21 +1,16 @@
-// MapReduce library
-// Copyright (C) 2009-2013 Craig Henderson
-// cdm.henderson@gmail.com
+// Copyright (c) 2009-2013 Craig Henderson
+// https://github.com/cdmh/mapreduce
 
-#ifndef MAPREDUCE_MERGESORT_HPP
-#define MAPREDUCE_MERGESORT_HPP
+#pragma once
 
 //#define DEBUG_TRACE_OUTPUT
-
-#ifdef DEBUG_TRACE_OUTPUT
-#include <iostream>
-#endif
 
 #include <deque>
 #include <list>
 #include <map>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <boost/filesystem.hpp>
 
 #ifdef __GNUC__
@@ -40,14 +35,14 @@ bool const greater_2nd(T const &first, T const &second)
 }
 
 template<typename It>
-bool const do_file_merge(It first, It last, char const *outfilename)
+bool const do_file_merge(It first, It last, std::string const &outfilename)
 {
 #ifdef _DEBUG
     int const max_files=10;
 #endif
 
     int count = 0;
-    std::ofstream outfile(outfilename, std::ios_base::out | std::ios_base::binary);
+    std::ofstream outfile(outfilename.c_str(), std::ios_base::out | std::ios_base::binary);
     while (first!=last)
     {
         //!!!subsequent times around the loop need to merge with outfilename from previous iteration
@@ -98,16 +93,13 @@ inline bool const delete_file(std::string const &pathname)
     try
     {
 #ifdef DEBUG_TRACE_OUTPUT
-        std::cout << "\n   deleting " << pathname;
+        std::clog << "\ndeleting " << pathname;
 #endif
         success = boost::filesystem::remove(pathname);
     }
     catch (std::exception &e)
     {
-#ifdef DEBUG_TRACE_OUTPUT
-        std::cerr << "\n" << e.what() << "\n";
-#endif
-        e;
+        std::cerr << "Error deleting file \"" << pathname << "\"\n" << e.what() << "\n";
     }
     return success;
 }
@@ -123,15 +115,15 @@ class temporary_file_manager : detail::noncopyable
 
     ~temporary_file_manager()
     {
-        try
+        for (auto filename : filenames_)
         {
-            // bind to the pass-through delete_file function because boost::filesystem::remove
-            // takes a boost::filesystem::path parameter and not a std::string parameter - the
-            // compiler will understandably not bind using an implicit conversion
-            std::for_each(filenames_.begin(), filenames_.end(), std::bind(delete_file, std::placeholders::_1));
-        }
-        catch (std::exception &)
-        {
+            try
+            {
+                delete_file(filename);
+            }
+            catch (std::exception &)
+            {
+            }
         }
     }
 
@@ -151,18 +143,18 @@ struct shared_ptr_indirect_less
 };
 
 template<typename Record>
-bool const merge_sort(char     const *in,
-                      char     const *out,
-                      unsigned const  max_lines = 10000000)
+bool const file_key_combiner(std::string const &in,
+                             std::string const &out,
+                             uint32_t    const  max_lines = 4294967000U)
 {
 #ifdef DEBUG_TRACE_OUTPUT
-    std::cout << "\n   merge_sort " << in << " to " << out;
+    std::clog << "\ncombining file keys " << in << "\n               into " << out;
 #endif
     std::deque<std::string>         temporary_files;
     detail::temporary_file_manager<
         std::deque<std::string> >   tfm(temporary_files);
     
-    std::ifstream infile(in, std::ios_base::in | std::ios_base::binary);
+    std::ifstream infile(in.c_str(), std::ios_base::in | std::ios_base::binary);
     if (!infile.is_open())
     {
         std::ostringstream err;
@@ -175,7 +167,7 @@ bool const merge_sort(char     const *in,
         typedef std::map<std::shared_ptr<Record>, unsigned, shared_ptr_indirect_less<Record> > lines_t;
         lines_t lines;
 
-        for (unsigned loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
+        for (uint32_t loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
         {
             if (infile.fail()  ||  infile.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred reading the input file."));
@@ -187,20 +179,20 @@ bool const merge_sort(char     const *in,
                 auto record = std::make_shared<Record>();
                 std::istringstream l(line);
                 l >> *record;
-                ++lines.insert(std::make_pair(record,0U)).first->second;
+                ++lines.insert(std::make_pair(record, 0U)).first->second;
             }
         }
 
         std::string const temp_filename(platform::get_temporary_filename());
         temporary_files.push_back(temp_filename);
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
-        for (typename lines_t::const_iterator it=lines.begin(); it!=lines.end(); ++it)
+        for (typename lines_t::iterator it=lines.begin(); it!=lines.end(); ++it)
         {
             if (file.fail()  ||  file.bad())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
 
-            for (unsigned loop=0; loop<it->second; ++loop)
-                file << *it->first << "\r";
+            it->first->second *= it->second;
+            file << *it->first << "\r";
         }
     }
     infile.close();
@@ -219,4 +211,20 @@ bool const merge_sort(char     const *in,
 
 }   // namespace mapreduce
 
-#endif  // MAPREDUCE_MERGESORT_HPP
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.

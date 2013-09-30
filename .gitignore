@@ -44,4 +44,5 @@ _ReSharper*/
 
 # Office Temp Files
 ~$*
-test/data
+tests/mrtest/data
+examples/wordcount/mapreduce_?_of_?

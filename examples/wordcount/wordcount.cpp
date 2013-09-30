@@ -1,7 +1,7 @@
-// MapReduce library
-// Copyright (C) 2009-2013 Craig Henderson
-// cdm.henderson@gmail.com
+// Copyright (c) 2009-2013 Craig Henderson
+// https://github.com/cdmh/mapreduce
 
+#define DEBUG_TRACE_OUTPUT
 #define BOOST_DISABLE_ASSERTS 
 #if !defined(_DEBUG) &&  !defined(BOOST_DISABLE_ASSERTS)
 #   pragma message("Warning: BOOST_DISABLE_ASSERTS not defined")
@@ -24,12 +24,28 @@
 #include <iostream>
 
 template<>
-inline uintmax_t const mapreduce::detail::length(std::pair<char const *, uintmax_t> const &string)
+inline uintmax_t const mapreduce::length(std::pair<char const *, uintmax_t> const &string)
 {
     return string.second;
 }
 
+template<>
+inline char const * const mapreduce::data(std::pair<char const *, uintmax_t> const &string)
+{
+    return string.first;
+}
 
+template<>
+inline
+unsigned const
+mapreduce::hash_partitioner::operator()(
+    std::pair<char const *, std::uintmax_t> const &key,
+    unsigned partitions) const
+{
+    return boost::hash_range(key.first, key.first+key.second) % partitions;
+}
+
+// use case insensitive string comparison for matching words
 template<>
 bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
          std::pair<char const *, std::uintmax_t> const &first,
@@ -49,27 +65,17 @@ bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
     return (first.second < second.second);
 }
 
-bool operator==(std::pair<char const *, std::uintmax_t> const &first,
-                std::pair<char const *, std::uintmax_t> const &second)
-{
-    if (first.second != second.second)
-        return false;
-    else if (first.second == 0  &&  first.first == 0  &&  second.first == 0)
-        return true;
-
-#if defined(BOOST_MSVC)
-    return (strnicmp(first.first, second.first, first.second) == 0);
-#else
-    return (strncasecmp(first.first, second.first, first.second) == 0);
-#endif
-}
-
-
 template<>
-unsigned const mapreduce::hash_partitioner::operator()(std::pair<char const *, std::uintmax_t> const &key, unsigned partitions) const
+bool std::less<std::string>::operator()(
+         std::string const &first,
+         std::string const &second) const
 {
-    return boost::hash_range(key.first, key.first+key.second) % partitions;
+    return
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>(first.c_str(), first.length()),
+            std::pair<char const *, std::uintmax_t>(second.c_str(), second.length()));
 }
+
 
 
 namespace {
@@ -85,6 +91,9 @@ double const sum(T const &durations)
 
 void write_stats(mapreduce::results const &result)
 {
+    if (result.map_times.size() == 0  || result.reduce_times.size() == 0)
+        return;
+
     std::cout << std::endl << "\nMapReduce statistics:";
     std::cout << "\n  MapReduce job runtime                     : " << result.job_runtime.count() << "s of which...";
     std::cout << "\n    Map phase runtime                       : " << result.map_runtime.count() << "s";
@@ -114,8 +123,7 @@ void write_stats(mapreduce::results const &result)
 
 std::ostream &operator<<(std::ostream &o, std::pair<char const *, uintmax_t> const &str)
 {
-    for (uintmax_t loop=0; loop<str.second; ++loop)
-        o << (char)::tolower(str.first[loop]);
+    std::copy(str.first, str.first+str.second, std::ostream_iterator<char>(o,""));
     return o;
 }
 
@@ -132,7 +140,7 @@ void write_frequency_table(Job const &job)
         frequencies_t::reverse_iterator it_smallest = frequencies.rbegin();
         for (++it; it!=ite; ++it)
         {
-            if (frequencies.size() < 10)    // show top 10
+            if (frequencies.size() < 1000)    // show top 10
             {
                 frequencies.push_back(*it);
                 if (it->second < it_smallest->second)
@@ -180,16 +188,65 @@ void run_wordcount(mapreduce::specification const &spec)
     }
     catch (std::exception &e)
     {
-        std::cout << std::endl << "Error: " << e.what();
+        std::cout << "\nError: " << e.what();
     }
 }
 
 }   // anonymous namespace
 
+// specialized stream operator to read and write a key/value pair of the types of the reduce task
+inline
+std::basic_ostream<char, std::char_traits<char>> &
+operator<<(
+    std::basic_ostream<char, std::char_traits<char>>                   &out,
+    std::pair<std::pair<char const *, std::uintmax_t>, unsigned> const &keyvalue)
+{
+    out << keyvalue.first.second << "\t";
+    out.write(keyvalue.first.first, keyvalue.first.second);
+    out << "\t" << keyvalue.second;
+    return out;
+}
 
+inline
+std::basic_ostream<char, std::char_traits<char>> &
+operator<<(
+    std::basic_ostream<char, std::char_traits<char>> &out,
+    std::pair<std::string, unsigned>           const &keyvalue)
+{
+    out <<
+        std::make_pair(
+            std::make_pair(keyvalue.first.c_str(), keyvalue.first.length()),
+            keyvalue.second);
+    return out;
+}
+
+inline
+std::basic_istream<char, std::char_traits<char>> &
+operator>>(
+    std::basic_istream<char, std::char_traits<char>> &in,
+    std::pair<std::string, unsigned>                 &keyvalue)
+{
+    size_t length;
+    in >> length;
+    if (!in.eof()  &&  !in.fail())
+    {
+        char tab;
+        in.read(&tab, 1); assert(tab == '\t');
+
+        keyvalue.first.resize(length);
+        in.read(&*keyvalue.first.begin(), length);
+        in.read(&tab, 1); assert(tab == '\t');
+        in >> keyvalue.second;
+    }
+    return in;
+}
 
 int main(int argc, char **argv)
 {
+#ifdef _CRTDBG_REPORT_FLAG
+    _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
     std::cout << "MapReduce Word Frequency Application";
     if (argc < 2)
     {
@@ -209,24 +266,87 @@ int main(int argc, char **argv)
         spec.reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
 
     std::cout << "\n" << std::max(1U, std::thread::hardware_concurrency()) << " CPU cores";
+
+    /*
+      the tests before are in pairs; tests running without a
+      functional combiner, and then with a combiner object
+    */
+
+    // test using a reduce key of a char pointer and length, to
+    // a memory-mapped buffer of text. this will work only for
+    // in-memory intermediates where the  memory-mapped buffer
+    // lifetime exceeds the duration of the map reduce job
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task> >(spec);
+            wordcount::reduce_task<
+                std::pair<char const *, std::uintmax_t>>> >(spec);
 
     run_wordcount<
         mapreduce::job<
             wordcount::map_task,
-            wordcount::reduce_task,
-            wordcount::combiner> >(spec);
+            wordcount::reduce_task<std::pair<char const *, std::uintmax_t>>,
+            wordcount::combiner<
+                wordcount::reduce_task<
+                    std::pair<char const *, std::uintmax_t>>>>>(spec);
 
-    //run_wordcount<
-    //    mapreduce::job<
-    //        wordcount::map_task,
-    //        wordcount::reduce_task,
-    //        wordcount::combiner,
-    //        mapreduce::datasource::directory_iterator<wordcount::map_task>,
-    //        mapreduce::intermediates::local_disk<wordcount::map_task, wordcount::reduce_task>>>(spec);
+    // these are functionally the same as the jobs above, but use std::string
+    // as the reduce key so the char buffer is owned by the intermediate store.
+    // this is less efficient, but more robust if the memory-mapped buffer
+    // may go out of scope
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>> >(spec);
+
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>,
+            wordcount::combiner<
+                wordcount::reduce_task<std::string>>>>(spec);
+
+    // because the intermediates are stored on disk and read back during the reduce
+    // phase, the reduce keys must own their own storage, so std::string is used
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>,
+            mapreduce::null_combiner,
+            mapreduce::datasource::directory_iterator<wordcount::map_task>,
+            mapreduce::intermediates::local_disk<
+                wordcount::map_task,
+                wordcount::reduce_task<std::string>,
+                wordcount::map_task::value_type>>>(spec);
+
+    run_wordcount<
+        mapreduce::job<
+            wordcount::map_task,
+            wordcount::reduce_task<std::string>,
+            wordcount::combiner<wordcount::reduce_task<std::string>>,
+            mapreduce::datasource::directory_iterator<wordcount::map_task>,
+            mapreduce::intermediates::local_disk<
+                wordcount::map_task,
+                wordcount::reduce_task<std::string>,
+                wordcount::map_task::value_type>>>(spec);
 
     return 0;
 }
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.

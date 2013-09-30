@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{AB0444E8-E927-470A-BF0B-A60E67F91B06}</ProjectGuid>
-    <RootNamespace>wordcount</RootNamespace>
+    <ProjectGuid>{3BC934D3-0EF5-4F82-B902-C1EC4527574D}</ProjectGuid>
+    <RootNamespace>mrtest</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -84,26 +84,26 @@
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">D:\Development\mapreduce\library\include;D:\Development\Library\Boost\boost_1_51_0;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Development\mapreduce\library\include;D:\Development\Library\Boost\boost_1_51_0;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">D:\Development\mapreduce\library\include;D:\Development\Library\Boost\boost_1_51_0;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Development\mapreduce\library\include;D:\Development\Library\Boost\boost_1_51_0;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\library\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\library\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\library\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\library\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LibraryPath>d:\Development\Library\boost\boost_1_51_0\stage\lib32;$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\Development\Library\boost\boost_1_54_0\stage\vs2012\lib32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LibraryPath>d:\Development\Library\boost\boost_1_51_0\stage\lib64;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\compiler\$(ProjectName)\</IntDir>
+    <LibraryPath>D:\Development\Library\boost\boost_1_54_0\stage\vs2012\lib64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LibraryPath>d:\Development\Library\boost\boost_1_51_0\stage\lib32;$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\Development\Library\boost\boost_1_54_0\stage\vs2012\lib32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LibraryPath>d:\Development\Library\boost\boost_1_51_0\stage\lib64;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\compiler\$(ProjectName)\</IntDir>
+    <LibraryPath>D:\Development\Library\boost\boost_1_54_0\stage\vs2012\lib64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -187,10 +187,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="wordcount.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="wordcount.h" />
+    <ClCompile Include="mrtest.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

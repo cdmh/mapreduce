@@ -1,6 +1,5 @@
-// MapReduce library
-// Copyright (C) 2009-2013 Craig Henderson
-// cdm.henderson@gmail.com
+// Copyright (c) 2009-2013 Craig Henderson
+// https://github.com/cdmh/mapreduce
 
 #include <numeric>      // accumulate
 
@@ -24,7 +23,7 @@ struct map_task : public mapreduce::map_task<
             {
                 if ((ch < 'A' || ch > 'Z') && ch != '\'')
                 {
-                    runtime.emit_intermediate(std::make_pair(word,ptr-word), 1);
+                    runtime.emit_intermediate(std::pair<char const *, std::uintmax_t>(word,ptr-word), 1);
                     in_word = false;
                 }
             }
@@ -38,14 +37,13 @@ struct map_task : public mapreduce::map_task<
         if (in_word)
         {
             assert(ptr > word);
-            runtime.emit_intermediate(std::make_pair(word,ptr-word), 1);
+            runtime.emit_intermediate(std::pair<char const *, std::uintmax_t>(word,ptr-word), 1);
         }
     }
 };
 
-struct reduce_task : public mapreduce::reduce_task<
-                                std::pair<char const *, std::uintmax_t>,
-                                unsigned>
+template<typename KeyType>
+struct reduce_task : public mapreduce::reduce_task<KeyType, unsigned>
 {
     template<typename Runtime, typename It>
     void operator()(Runtime &runtime, key_type const &key, It it, It const ite) const
@@ -54,38 +52,55 @@ struct reduce_task : public mapreduce::reduce_task<
     }
 };
 
+template<typename ReduceTask>
 class combiner
 {
   public:
-    template<typename IntermediateStore>
-    static void run(IntermediateStore &intermediate_store)
-    {
-        combiner instance;
-        intermediate_store.combine(instance);
-    }
-
-    void start(reduce_task::key_type const &)
+    void start(typename ReduceTask::key_type const &)
     {
         total_ = 0;
     }
 
     template<typename IntermediateStore>
-    void finish(reduce_task::key_type const &key, IntermediateStore &intermediate_store)
+    void finish(typename ReduceTask::key_type const &key, IntermediateStore &intermediate_store)
     {
         if (total_ > 0)
-            intermediate_store.insert(key, total_);
+        {
+            // the combiner needs to emit an intermediate result, not a final result, so
+            // here we convert the type from std::string (final) to intermediate (ptr/length)
+            intermediate_store.insert(
+                std::make_pair(
+                    mapreduce::data(key),
+                    mapreduce::length(key)),
+                total_);
+        }
     }
 
-    void operator()(reduce_task::value_type const &value)
+    void operator()(typename ReduceTask::value_type const &value)
     {
         total_ += value;
     }
-        
-  private:
-    combiner() { }
 
   private:
     unsigned total_;
 };
 
 }   // namespace wordcount
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.

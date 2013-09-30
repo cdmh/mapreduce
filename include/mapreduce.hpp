@@ -1,9 +1,7 @@
-// MapReduce library
-// Copyright (C) 2009-2013 Craig Henderson.
-// cdm.henderson@gmail.com
+// Copyright (c) 2009-2013 Craig Henderson
+// https://github.com/cdmh/mapreduce
 
-#ifndef MAPREDUCE_HPP
-#define MAPREDUCE_HPP
+#pragma once
 
 #ifdef BOOST_MSVC
 #   if !defined(__SGI_STL_PORT)
@@ -56,7 +54,17 @@ class joined_thread_group : public std::vector<std::thread>
     void join_all(void)
     {
         for (auto &thread : *this)
-            thread.join();
+        {
+            try
+            {
+                thread.join();
+            }
+            catch (std::exception &)
+            {
+                // std::thread seems to throw "invalid argument" if
+                // the thread has already gone away when we call join()
+            }
+        }
     }
 };
 
@@ -130,10 +138,10 @@ struct results
 #include <boost/throw_exception.hpp>
 #include "detail/platform.hpp"
 #include "detail/mergesort.hpp"
+#include "detail/null_combiner.hpp"
 #include "detail/intermediates.hpp"
 #include "detail/schedule_policy.hpp"
 #include "detail/datasource.hpp"
-#include "detail/null_combiner.hpp"
 #include "detail/job.hpp"
 
 namespace mapreduce {
@@ -148,4 +156,20 @@ void run(mapreduce::specification &spec, mapreduce::results &result)
 
 }   // namespace mapreduce
 
-#endif  // MAPREDUCE_HPP
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
