@@ -30,94 +30,120 @@ struct file_merger
     template<typename List>
     void operator()(List const &filenames, std::string const &dest)
     {
-        std::ofstream outfile(dest.c_str(), std::ios_base::out | std::ios_base::binary);
-
-        std::list<std::string> files, delete_files;
         std::copy(filenames.begin(), filenames.end(), std::back_inserter(files));
         std::copy(filenames.begin(), filenames.end(), std::back_inserter(delete_files));
 
+        outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
         while (files.size() > 0)
         {
-            typedef std::list<std::pair<std::shared_ptr<std::ifstream>, Record> > file_lines_t;
-            file_lines_t file_lines;
-            while (files.size() > 0)
+            open_files();
+            merge_files(dest);
+
+            assert(file_lines.size() == 0);
+
+            // subsequent merges need to merge with outfile from previous
+            // iteration. to do this, rename the output file to a temporary
+            // filename and add it to the list of files to merge, then re-open
+            // the destination file
+            if (files.size() > 0)
+                rename_result_for_iterative_merge(dest);
+        }
+    }
+
+  private:
+    struct file_deleter : private std::vector<std::string>
+    {
+        ~file_deleter()
+        {
+            for (auto const &filename : *this)
+                detail::delete_file(filename);
+        }
+
+        // enable std::back_inserter
+        using std::vector<std::string>::push_back;
+        using std::vector<std::string>::value_type;
+        using std::vector<std::string>::const_reference;
+    };
+
+    void open_files(void)
+    {
+        // open each file and read the first record (line) from each
+        while (files.size() > 0)
+        {
+            auto file = std::make_shared<std::ifstream>(files.front().c_str(), std::ios_base::in | std::ios_base::binary);
+            if (!file->is_open())
+                break;
+
+            files.pop_front();
+
+            std::string line;
+            std::getline(*file, line, '\r');
+
+            Record record;
+            std::istringstream l(line);
+            l >> record;
+            file_lines.push_back(std::make_pair(file, record));
+        }
+    }
+
+    void merge_files(std::string const &dest)
+    {
+        // find the smallest record in the list
+        while (file_lines.size() > 0)
+        {
+            auto it = std::min_element(file_lines.begin(), file_lines.end(), file_lines_comp());
+
+            // scan for all occurrences of the smallest record in our list of records,
+            // and write each one to the output files
+            Record const record = it->second;
+            while (it != file_lines.end())
             {
-                auto file = std::make_shared<std::ifstream>(files.front().c_str(), std::ios_base::in | std::ios_base::binary);
-                if (!file->is_open())
-                    break;
-
-                files.pop_front();
-
-                std::string line;
-                std::getline(*file, line, '\r');
-
-                Record record;
-                std::istringstream l(line);
-                l >> record;
-                file_lines.push_back(std::make_pair(file, record));
-            }
-
-            while (file_lines.size() > 0)
-            {
-                typename file_lines_t::iterator it;
-                if (file_lines.size() == 1)
-                    it = file_lines.begin();
-                else
-                    it = std::min_element(file_lines.begin(), file_lines.end(), file_lines_comp());
-
-                Record record = it->second;
-                while (it != file_lines.end())
+                if (it->second == record)
                 {
-                    if (it->second == record)
+                    outfile << it->second << "\r";
+
+                    std::string line;
+                    std::getline(*it->first, line, '\r');
+
+                    if (length(line) > 0)
                     {
-                        outfile << it->second << "\r";
+                        std::istringstream l(line);
+                        l >> it->second;
+                    }
 
-                        std::string line;
-                        std::getline(*it->first, line, '\r');
-
-                        if (length(line) > 0)
-                        {
-                            std::istringstream l(line);
-                            l >> it->second;
-                        }
-
-                        if (it->first->eof())
-                        {
-                            typename file_lines_t::iterator it1 = it++;
-                            file_lines.erase(it1);
-                        }
-                        else
-                            ++it;
+                    if (it->first->eof())
+                    {
+                        auto it1 = it++;
+                        file_lines.erase(it1);
                     }
                     else
                         ++it;
                 }
-            }
-
-            // subsequent times around the loop need to merge with outfilename
-            // from previous iteration. to do this, rename the output file to
-            // a temporary filename and add it to the list of files to merge.
-            // then re-open the destination file
-            if (files.size() > 0)
-            {
-                outfile.close();
-
-                std::string const temp_filename = platform::get_temporary_filename();
-                delete_file(temp_filename);
-                boost::filesystem::rename(dest, temp_filename);
-                delete_files.push_back(temp_filename);
-
-                files.push_back(temp_filename);
-                outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
+                else
+                    ++it;
             }
         }
-
-        // delete fragment files
-        std::for_each(
-            delete_files.begin(),
-            delete_files.end(),
-            std::bind(detail::delete_file, std::placeholders::_1));
     }
+
+    void rename_result_for_iterative_merge(std::string const &dest)
+    {
+        outfile.close();
+
+        std::string const temp_filename = platform::get_temporary_filename();
+        delete_file(temp_filename);
+        boost::filesystem::rename(dest, temp_filename);
+        delete_files.push_back(temp_filename);
+
+        files.push_back(temp_filename);
+        outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
+    }
+
+  private:
+    typedef std::list<std::pair<std::shared_ptr<std::ifstream>, Record> > file_lines_t;
+    file_lines_t           file_lines;
+    std::list<std::string> files;
+    std::ofstream          outfile;
+    file_deleter           delete_files;
 };
 
 template<typename Record>
@@ -552,10 +578,12 @@ class local_disk : detail::noncopyable
         typename intermediates_t::iterator it = intermediate_files_.find(partition);
         assert(it != intermediate_files_.end());
         it->second->write_stream.close();
+
+        MergeFn merge_fn;
         if (!it->second->fragment_filenames.empty())
         {
             it->second->filename = platform::get_temporary_filename();
-            merge_fn_(it->second->fragment_filenames, it->second->filename);
+            merge_fn(it->second->fragment_filenames, it->second->filename);
         }
     }
 
@@ -631,7 +659,6 @@ class local_disk : detail::noncopyable
     unsigned const  num_partitions_;
     intermediates_t intermediate_files_;
     CombineFile     combine_fn_;
-    MergeFn         merge_fn_;
     PartitionFn     partitioner_;
 };
 
