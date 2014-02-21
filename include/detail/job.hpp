@@ -38,18 +38,18 @@ class reduce_task
 
 template<typename MapTask,
          typename ReduceTask,
-         typename Combiner=null_combiner,
-         typename Datasource=datasource::directory_iterator<MapTask>,
-         typename IntermediateStore=intermediates::in_memory<MapTask, ReduceTask>,
-         typename StoreResult=typename IntermediateStore::store_result_type>
+         typename Combiner          = null_combiner,
+         typename Datasource        = datasource::directory_iterator<MapTask>,
+         typename IntermediateStore = intermediates::in_memory<MapTask, ReduceTask>,
+         typename StoreResult       = typename IntermediateStore::store_result_type>
 class job : detail::noncopyable
 {
   public:
-    typedef MapTask                 map_task_type;
-    typedef ReduceTask              reduce_task_type;
-    typedef Datasource              datasource_type;
-    typedef IntermediateStore       intermediate_store_type;
-    typedef Combiner                combiner_type;
+    typedef MapTask           map_task_type;
+    typedef ReduceTask        reduce_task_type;
+    typedef Combiner          combiner_type;
+    typedef Datasource        datasource_type;
+    typedef IntermediateStore intermediate_store_type;
 
     typedef
     typename intermediate_store_type::const_result_iterator
@@ -59,7 +59,7 @@ class job : detail::noncopyable
     typename intermediate_store_type::keyvalue_t
     keyvalue_t;
 
-  public:
+  private:
     class map_task_runner : detail::noncopyable
     {
       public:
@@ -143,6 +143,7 @@ class job : detail::noncopyable
         StoreResult              store_result_;
     };
 
+  public:
     job(datasource_type &datasource, specification const &spec)
       : datasource_(datasource),
         specification_(spec),
@@ -160,9 +161,9 @@ class job : detail::noncopyable
         return intermediate_store_.end_results();
     }
 
-    bool const get_next_map_key(void *&key)
+    bool const get_next_map_key(typename map_task_type::key_type *&key)
     {
-        std::auto_ptr<typename map_task_type::key_type> next_key(new typename map_task_type::key_type);
+        std::unique_ptr<typename map_task_type::key_type> next_key(new typename map_task_type::key_type);
         if (!datasource_.setup_key(*next_key))
             return false;
         key = next_key.release();
@@ -183,7 +184,7 @@ class job : detail::noncopyable
     void run(results &result)
     {
         SchedulePolicy schedule;
-        this->run(schedule, result);
+        run(schedule, result);
     }
 
     template<typename SchedulePolicy>
@@ -195,7 +196,7 @@ class job : detail::noncopyable
     }
 
     template<typename Sync>
-    bool const run_map_task(void *key, results &result, Sync &sync)
+    bool const run_map_task(typename map_task_type::key_type *key, results &result, Sync &sync)
     {
         auto const start_time = std::chrono::system_clock::now();
 
@@ -203,11 +204,7 @@ class job : detail::noncopyable
         {
             ++result.counters.map_keys_executed;
 
-            std::auto_ptr<typename map_task_type::key_type>
-                map_key_ptr(
-                    reinterpret_cast<
-                        typename map_task_type::key_type *>(key));
-
+            std::unique_ptr<typename map_task_type::key_type> map_key_ptr(key);
             typename map_task_type::key_type &map_key = *map_key_ptr;
 
             // get some data

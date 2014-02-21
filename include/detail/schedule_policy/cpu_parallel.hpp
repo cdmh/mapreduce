@@ -19,7 +19,7 @@ inline void run_next_map_task(Job &job, std::mutex &m1, std::mutex &m2, results 
         bool run = true;
         while (run)
         {
-            void *key = 0;
+            typename Job::map_task_type::key_type *key = 0;
 
             m1.lock();
             run = job.get_next_map_key(key);

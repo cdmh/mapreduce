@@ -89,6 +89,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LibraryPath>D:\Development\Library\boost\boost_1_54_0\stage\vs2012\lib32;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)..\bin\$(Platform)\$(Configuration)\$(SolutionName)\</OutDir>
+    <IntDir>$(SolutionDir)..\bin\$(Platform)\$(Configuration)\$(SolutionName)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(Configuration)\$(SolutionName)\</OutDir>

@@ -241,6 +241,7 @@ operator>>(
     return in;
 }
 
+
 int main(int argc, char **argv)
 {
 #ifdef _CRTDBG_REPORT_FLAG
@@ -317,7 +318,15 @@ int main(int argc, char **argv)
             mapreduce::intermediates::local_disk<
                 wordcount::map_task,
                 wordcount::reduce_task<std::string>,
-                wordcount::map_task::value_type>>>(spec);
+                wordcount::map_task::value_type,
+                mapreduce::hash_partitioner,
+                mapreduce::intermediates::reduce_file_output<wordcount::map_task, wordcount::reduce_task<std::string>>,
+                mapreduce::detail::file_key_combiner<
+                    wordcount::key_combiner<
+                        std::pair<
+                            wordcount::reduce_task<std::string>::key_type,
+                            wordcount::reduce_task<std::string>::value_type>>
+    >>>>(spec);
 
     run_wordcount<
         mapreduce::job<
@@ -328,7 +337,15 @@ int main(int argc, char **argv)
             mapreduce::intermediates::local_disk<
                 wordcount::map_task,
                 wordcount::reduce_task<std::string>,
-                wordcount::map_task::value_type>>>(spec);
+                wordcount::map_task::value_type,
+                mapreduce::hash_partitioner,
+                mapreduce::intermediates::reduce_file_output<wordcount::map_task, wordcount::reduce_task<std::string>>,
+                mapreduce::detail::file_key_combiner<
+                    wordcount::key_combiner<
+                        std::pair<
+                            wordcount::reduce_task<std::string>::key_type,
+                            wordcount::reduce_task<std::string>::value_type>>
+    >>>>(spec);
 
     return 0;
 }

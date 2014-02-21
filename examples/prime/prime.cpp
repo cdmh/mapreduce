@@ -131,12 +131,8 @@ int main(int argc, char *argv[])
 #endif
     std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
 
-    for (prime_calculator::job::const_result_iterator it = job.begin_results();
-         it!=job.end_results();
-         ++it)
-    {
-        std::cout <<it->second <<" ";
-    }
+    for (auto it=job.begin_results(); it!=job.end_results(); ++it)
+        std::cout << it->second <<" ";
 
 	return 0;
 }
