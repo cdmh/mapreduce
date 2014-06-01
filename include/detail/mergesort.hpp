@@ -72,6 +72,7 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
             if (file_lines.size() == 1)
                 it = file_lines.begin();
             else
+               // todo : heap for performance
                 it = std::min_element(file_lines.begin(), file_lines.end());
             outfile << it->second << "\r";
 
