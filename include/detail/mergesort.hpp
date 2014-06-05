@@ -84,7 +84,7 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
             if (it->first->eof())
                 file_lines.erase(it);
             else
-               std::push_heap(begin(file_lines), end(file_lines));
+                std::push_heap(begin(file_lines), end(file_lines));
         }
     }
 
