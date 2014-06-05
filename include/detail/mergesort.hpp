@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <boost/filesystem.hpp>
 
 #ifdef __GNUC__
@@ -66,7 +67,7 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
             file_lines.push_back(std::make_pair(file, line));
         }
 
-        make_heap(begin(file_lines), end(file_lines), [](const std::string& l, const std::string& r) { return l > r; });
+        std::make_heap(begin(file_lines), end(file_lines), [](const std::string& l, const std::string& r) { return l > r; });
         while (file_lines.size() > 0)
         {
             typename file_lines_t::iterator it;
