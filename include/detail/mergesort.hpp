@@ -75,15 +75,16 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
                 it = file_lines.begin();
             else
             {
-              std::pop_heap(begin(file_lines), end(file_lines));
-              it = file_lines.back();
+                std::pop_heap(begin(file_lines), end(file_lines));
+                it = file_lines.back();
             }
             outfile << it->second << "\r";
 
             std::getline(*it->first, it->second, '\r');
             if (it->first->eof())
                 file_lines.erase(it);
-            std::push_heap(begin(file_lines), end(file_lines));
+            else
+               std::push_heap(begin(file_lines), end(file_lines));
         }
     }
 
