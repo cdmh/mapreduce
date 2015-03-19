@@ -197,7 +197,6 @@ class in_memory : detail::noncopyable
 
     void swap(in_memory &other)
     {
-        using std::swap;
         swap(intermediates_, other.intermediates_);
     }
 
@@ -209,7 +208,8 @@ class in_memory : detail::noncopyable
     void reduce(unsigned const partition, Callback &callback)
     {
         typename intermediates_t::value_type map;
-        std::swap(map, intermediates_[partition]);
+        using std::swap;
+        swap(map, intermediates_[partition]);
 
         for (auto const &result : map)
             callback(result.first, result.second.begin(), result.second.end());
@@ -224,7 +224,8 @@ class in_memory : detail::noncopyable
 
         if (map.size() == 0)
         {
-            std::swap(map, other_map);
+            using std::swap;
+            swap(map, other_map);
             return;
         }
 
@@ -286,7 +287,8 @@ class in_memory : detail::noncopyable
     {
         intermediates_t intermediates;
         intermediates.resize(num_partitions_);
-        std::swap(intermediates_, intermediates);
+        using std::swap;
+        swap(intermediates_, intermediates);
 
         for (auto const &intermediate : intermediates)
         {

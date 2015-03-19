@@ -523,6 +523,8 @@ class local_disk : detail::noncopyable
     template<typename FnObj>
     void combine(FnObj &fn_obj)
     {
+        using std::swap;
+
         this->close_files();
         for (auto it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
         {
@@ -531,7 +533,7 @@ class local_disk : detail::noncopyable
             // run the combine function to combine records with the same key
             combine_fn_(it->second->filename, outfilename);
             detail::delete_file(it->second->filename);
-            std::swap(it->second->filename, outfilename);
+            swap(it->second->filename, outfilename);
         }
         this->close_files();
     }
@@ -596,9 +598,10 @@ class local_disk : detail::noncopyable
 
         typename intermediates_t::iterator it = intermediate_files_.find(partition);
         assert(it != intermediate_files_.end());
+        using std::swap;
 
         std::string filename;
-        std::swap(filename, it->second->filename);
+        swap(filename, it->second->filename);
         it->second->write_stream.close();
         intermediate_files_.erase(it);
 
@@ -618,7 +621,7 @@ class local_disk : detail::noncopyable
                     values.clear();
                 }
                 if (length(kv.first) > 0)
-                    std::swap(kv.first, last_key);
+                    swap(kv.first, last_key);
             }
 
             values.push_back(kv.second);
