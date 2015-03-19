@@ -82,4 +82,4 @@ SchedulePolicy
 -
 This policy is the core of the scheduling algorithm and runs the Map and Reduce Tasks. Two schedule policies are supplied, `cpu_parallel` uses the maximum available CPU cores to run as many map simultaneous tasks as possible (within a limit given in the `mapreduce::specification` object). The sequential scheduler will run one map task followed by one reduce task, which is useful for debugging purposes.
 
-See the [MapReduce C++ Library](http://cdmh.co.uk/papers/software_scalability_mapreduce/library) page for more information, and a sample program.
+See the [MapReduce C++ Library](http://cdmh.co.uk/papers/software_scalability_mapreduce/library.php) page for more information, and a sample program.
