@@ -8,48 +8,53 @@ The MapReduce C++ Library implements a single-machine platform for programming u
 Synopsis
 -
 
-    namespace mapreduce {
-    
-    template<typename MapTask,
-             typename ReduceTask,
-             typename Datasource=datasource::directory_iterator<MapTask>,
-             typename Combiner=null_combiner,
-             typename IntermediateStore=intermediates::local_disk<MapTask> >
-    class job;
+```cpp
+namespace mapreduce {
 
-    } // namespace mapreduce
+template<typename MapTask,
+		 typename ReduceTask,
+		 typename Datasource=datasource::directory_iterator<MapTask>,
+		 typename Combiner=null_combiner,
+		 typename IntermediateStore=intermediates::local_disk<MapTask> >
+class job;
 
+} // namespace mapreduce
+```
     
 The developer is required to write two classes; `MapTask` implements a mapping function to process key/value pairs generate a set of intermediate key/value pairs and `ReduceTask` that implements a reduce function to merges all intermediate values associated with the same intermediate key.
 In addition, there are three optional template parameters that can be used to modify the default implementation behavior; `Datasource` that implements a mechanism to feed data to the Map Tasks - on request of the `MapReduce` library, Combiner that can be used to partially consolidate results of the Map Task before they are passed to the Reduce Tasks, and `IntermediateStore` that handles storage, merging and sorting of intermediate results between the Map and Reduce phases.
 The `MapTask` class must define four data types; the key/value types for the inputs to the Map Tasks and the intermediate types.
 
-    class map_task
-    {
-      public:
-        typedef std::string   key_type;
-        typedef std::ifstream value_type;
-        typedef std::string   intermediate_key_type;
-        typedef unsigned      intermediate_value_type;
+```cpp
+class map_task
+{
+  public:
+	typedef std::string   key_type;
+	typedef std::ifstream value_type;
+	typedef std::string   intermediate_key_type;
+	typedef unsigned      intermediate_value_type;
 
-        map_task(job::map_task_runner &runner);
-        void operator()(key_type const &key, value_type const &value);
-    }:
+	map_task(job::map_task_runner &runner);
+	void operator()(key_type const &key, value_type const &value);
+};
+```
       
 The `ReduceTask` must define the key/value types for the results of the Reduce phase.
 
-    class reduce_task
-    {
-      public:
-        typedef std::string  key_type;
-        typedef size_t       value_type;
+```cpp
+class reduce_task
+{
+  public:
+	typedef std::string  key_type;
+	typedef size_t       value_type;
 
-        reduce_task(job::reduce_task_runner &runner);
+	reduce_task(job::reduce_task_runner &runner);
 
-        template<typename It>
-        void operator()(typename map_task::intermediate_key_type const &key, It it, It ite)
-    }:
-      
+	template<typename It>
+	void operator()(typename map_task::intermediate_key_type const &key, It it, It ite)
+};
+```
+
 Extensibility
 -
 The library is designed to be extensible and configurable through a Policy-based mechanism. Default implementations are provided to enable the library user to run MapReduce simply by implementing the core Map and Reduce tasks, but can be replaced to provide specific features.
