@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2013 Craig Henderson
+// Copyright (c) 2009-2016 Craig Henderson
 // https://github.com/cdmh/mapreduce
 
 #pragma once

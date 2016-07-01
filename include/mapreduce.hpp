@@ -1,12 +1,14 @@
-// Copyright (c) 2009-2013 Craig Henderson
+// Copyright (c) 2009-2016 Craig Henderson
 // https://github.com/cdmh/mapreduce
 
 #pragma once
 
 #ifdef BOOST_MSVC
 #   if !defined(__SGI_STL_PORT)
-#       pragma message("warning: using STLPort is recommended to avoid STL container performance problems in MSVC supplied libraries.")
-#       if _SECURE_SCL
+#       if _MSC_VER < 1900
+#           pragma message("warning: using STLPort is recommended to avoid STL container performance problems in MSVC supplied libraries.")
+#       endif
+#       if _SECURE_SCL == 1
 #           pragma message("warning: using MSVC with _SECURE_SCL=1 defined can cause serious runtime performance degradation.")
 #       endif
 #   endif

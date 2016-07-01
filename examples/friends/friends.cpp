@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2013 Craig Henderson
+// Copyright (c) 2009-2016 Craig Henderson
 // https://github.com/cdmh/mapreduce
 
 #include <boost/config.hpp>
@@ -64,14 +64,14 @@ struct map_task : public mapreduce::map_task<unsigned, std::vector<unsigned> >
     {
         std::cout << "\n\n" << names[key] << "\n";
 
-        for (value_type::const_iterator uid=value.begin(); uid!=value.end(); ++uid)
+        for (auto const &v1 : value)
         {
-            typename Runtime::reduce_task_type::key_type const emit_key = std::make_pair(std::min(key, *uid), std::max(key, *uid));
+            typename Runtime::reduce_task_type::key_type const emit_key = std::make_pair(std::min(key, v1), std::max(key, v1));
 
             std::cout << "    {" << names[emit_key.first] << ", " << names[emit_key.second] << "}";
             std::cout << " -> [";
-            for (value_type::const_iterator uid=value.begin(); uid!=value.end(); ++uid)
-                std::cout << " " << names[*uid];
+            for (auto const &v2 : value)
+                std::cout << " " << names[v2];
             std::cout << " ]\n";
 
             runtime.emit_intermediate(emit_key, value);

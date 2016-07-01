@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2013 Craig Henderson
+// Copyright (c) 2009-2016 Craig Henderson
 // https://github.com/cdmh/mapreduce
 
 // The prime number code is based on work from Christian Henning [chhenning@gmail.com]

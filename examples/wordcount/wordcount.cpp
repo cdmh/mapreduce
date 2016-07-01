@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2013 Craig Henderson
+// Copyright (c) 2009-2016 Craig Henderson
 // https://github.com/cdmh/mapreduce
 
 #define DEBUG_TRACE_OUTPUT
@@ -47,25 +47,17 @@ mapreduce::hash_partitioner::operator()(
 
 // use case insensitive string comparison for matching words
 template<>
+constexpr
 bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
          std::pair<char const *, std::uintmax_t> const &first,
          std::pair<char const *, std::uintmax_t> const &second) const
 {
-    std::ptrdiff_t const len = std::min(first.second, second.second);
-#if defined(BOOST_MSVC)
-    int const cmp = strnicmp(first.first, second.first, len);
-#else
-    int const cmp = strncasecmp(first.first, second.first, len);
-#endif
-    if (cmp < 0)
-        return true;
-    else if (cmp > 0)
-        return false;
-
-    return (first.second < second.second);
+    return (strnicmp(first.first, second.first, std::min(first.second, second.second)) < 0)
+         || ((first.second < second.second)  &&  (strnicmp(first.first, second.first, std::min(first.second, second.second)) <= 0));
 }
 
 template<>
+constexpr
 bool std::less<std::string>::operator()(
          std::string const &first,
          std::string const &second) const
@@ -75,8 +67,6 @@ bool std::less<std::string>::operator()(
             std::pair<char const *, std::uintmax_t>(first.c_str(), first.length()),
             std::pair<char const *, std::uintmax_t>(second.c_str(), second.length()));
 }
-
-
 
 namespace {
 
@@ -254,6 +244,27 @@ int main(int argc, char **argv)
         std::cerr << "Usage: wordcount directory [num_map_tasks]\n";
         return 1;
     }
+
+    assert(!(
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>("Hello",5),
+            std::pair<char const *, std::uintmax_t>("Hello",5))));
+    assert((
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>("abc",3),
+            std::pair<char const *, std::uintmax_t>("abcd",4))));
+    assert(!(
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>("abcd",4),
+            std::pair<char const *, std::uintmax_t>("abc",3))));
+    assert((
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>("abc",3),
+            std::pair<char const *, std::uintmax_t>("abd",3))));
+    assert(!(
+        std::less<std::pair<char const *, std::uintmax_t>>()(
+            std::pair<char const *, std::uintmax_t>("abd",3),
+            std::pair<char const *, std::uintmax_t>("abc",3))));
 
     mapreduce::specification spec;
     spec.input_directory = argv[1];
