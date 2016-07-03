@@ -164,7 +164,7 @@ bool const file_key_combiner(std::string const &in,
 
     while (!infile.eof())
     {
-        typedef std::map<std::shared_ptr<Record>, unsigned, shared_ptr_indirect_less<Record> > lines_t;
+        using lines_t = std::map<std::shared_ptr<Record>, std::streamsize, shared_ptr_indirect_less<Record>>;
         lines_t lines;
 
         for (uint32_t loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
@@ -179,7 +179,7 @@ bool const file_key_combiner(std::string const &in,
                 auto record = std::make_shared<Record>();
                 std::istringstream l(line);
                 l >> *record;
-                ++lines.insert(std::make_pair(record, 0U)).first->second;
+                ++lines.insert(std::make_pair(record, std::streamsize())).first->second;
             }
         }
 

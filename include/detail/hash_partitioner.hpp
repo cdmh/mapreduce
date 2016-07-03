@@ -10,10 +10,10 @@ namespace mapreduce {
 struct hash_partitioner
 {
     template<typename T>
-    unsigned const operator()(T const &key, unsigned partitions) const
+    size_t const operator()(T const &key, size_t partitions) const
     {
         boost::hash<T> hasher;
-        return unsigned(hasher(key) % partitions);
+        return hasher(key) % partitions;
     }
 };
 

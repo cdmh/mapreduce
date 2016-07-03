@@ -114,12 +114,14 @@ int main(int argc, char *argv[])
     if (argc > 2)
         spec.map_tasks = std::max(1, atoi(argv[2]));
 
+    int reduce_tasks;
     if (argc > 3)
-        spec.reduce_tasks = atoi(argv[3]);
+        reduce_tasks = atoi(argv[3]);
     else
-        spec.reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
+        reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
+    spec.reduce_tasks = reduce_tasks;
 
-    prime_calculator::job::datasource_type datasource(0, prime_limit, prime_limit/spec.reduce_tasks);
+    prime_calculator::job::datasource_type datasource(0, prime_limit, prime_limit/reduce_tasks);
 
     std::cout <<"\nCalculating Prime Numbers in the range 0 .. " << prime_limit << " ..." <<std::endl;
     prime_calculator::job job(datasource, spec);

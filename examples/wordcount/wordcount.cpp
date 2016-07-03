@@ -37,10 +37,10 @@ inline char const * const mapreduce::data(std::pair<char const *, uintmax_t> con
 
 template<>
 inline
-unsigned const
+size_t const
 mapreduce::hash_partitioner::operator()(
     std::pair<char const *, std::uintmax_t> const &key,
-    unsigned partitions) const
+    size_t partitions) const
 {
     return boost::hash_range(key.first, key.first+key.second) % partitions;
 }
@@ -95,7 +95,7 @@ void write_stats(mapreduce::results const &result)
     std::cout << "\n    Number of Map Tasks run (in parallel)   : " << result.counters.actual_map_tasks;
     std::cout << "\n    Fastest Map key processed in            : " << std::min_element(result.map_times.cbegin(), result.map_times.cend())->count() << "s";
     std::cout << "\n    Slowest Map key processed in            : " << std::max_element(result.map_times.cbegin(), result.map_times.cend())->count() << "s";
-    std::cout << "\n    Average time to process Map keys        : " << sum(result.map_times) / result.map_times.size();
+    std::cout << "\n    Average time to process Map keys        : " << sum(result.map_times) / double(result.map_times.size()) << "s";
 
     std::cout << "\n\n  Reduce:";
     std::cout << "\n    Total Reduce keys                       : " << result.counters.reduce_keys_executed;
@@ -107,8 +107,9 @@ void write_stats(mapreduce::results const &result)
     {
         std::cout << "\n    Fastest Reduce key processed in         : " << std::min_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
         std::cout << "\n    Slowest Reduce key processed in         : " << std::max_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
-        std::cout << "\n    Average time to process Reduce keys     : " << sum(result.reduce_times) / result.map_times.size();
+        std::cout << "\n    Average time to process Reduce keys     : " << sum(result.reduce_times) / double(result.map_times.size()) << "s";
     }
+    std::cout << std::endl;
 }
 
 std::ostream &operator<<(std::ostream &o, std::pair<char const *, uintmax_t> const &str)
@@ -120,14 +121,17 @@ std::ostream &operator<<(std::ostream &o, std::pair<char const *, uintmax_t> con
 template<typename Job>
 void write_frequency_table(Job const &job)
 {
-    typename Job::const_result_iterator it  = job.begin_results();
-    typename Job::const_result_iterator ite = job.end_results();
+    std::cout << "\n\nMapReduce results:";
+    flush(std::cout);
+
+    auto it  = job.begin_results();
+    auto ite = job.end_results();
     if (it != ite)
     {
         typedef std::list<typename Job::keyvalue_t> frequencies_t;
         frequencies_t frequencies;
         frequencies.push_back(*it);
-        frequencies_t::reverse_iterator it_smallest = frequencies.rbegin();
+        auto it_smallest = frequencies.rbegin();
         for (++it; it!=ite; ++it)
         {
             if (frequencies.size() < 1000)    // show top 10
@@ -148,7 +152,6 @@ void write_frequency_table(Job const &job)
         }
 
         frequencies.sort(mapreduce::detail::greater_2nd<typename Job::keyvalue_t>);
-        std::cout << "\n\nMapReduce results:";
         for (auto &freq : frequencies)
             std::cout << "\n" << freq.first << "\t" << freq.second;
     }
@@ -164,11 +167,12 @@ void run_wordcount(mapreduce::specification const &spec)
         mapreduce::results result;
         typename Job::datasource_type datasource(spec);
 
-        std::cout << "\nRunning Parallel WordCount MapReduce...";
         Job job(datasource, spec);
 #ifdef _DEBUG
+        std::cout << "\nRunning Sequential WordCount MapReduce...";
         job.run<mapreduce::schedule_policy::sequential<Job> >(result);
 #else
+        std::cout << "\nRunning Parallel WordCount MapReduce...";
         job.run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
 #endif
         std::cout << "\nMapReduce Finished.";

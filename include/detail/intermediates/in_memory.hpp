@@ -30,8 +30,8 @@ class reduce_null_output
 {
   public:
     reduce_null_output(std::string const &/*output_filespec*/,
-                       unsigned    const  /*partition*/,
-                       unsigned    const  /*num_partitions*/)
+                       size_t      const  /*partition*/,
+                       size_t      const  /*num_partitions*/)
     {
     }
 
@@ -109,14 +109,14 @@ class in_memory : detail::noncopyable
 
         bool const equal(const_result_iterator const &other) const
         {
-            if (current_.first == std::numeric_limits<unsigned>::max()  ||  other.current_.first == std::numeric_limits<unsigned>::max())
+            if (current_.first == std::numeric_limits<decltype(current_.first)>::max()  ||  other.current_.first == std::numeric_limits<decltype(current_.first)>::max())
                 return other.current_.first == current_.first;
             return value_ == other.value_;
         }
 
         const_result_iterator &begin(void)
         {
-            for (unsigned loop=0; loop<outer_->num_partitions_; ++loop)
+            for (size_t loop=0; loop<outer_->num_partitions_; ++loop)
                 iterators_[loop] = outer_->intermediates_[loop].cbegin();
             set_current();
             return *this;
@@ -124,7 +124,7 @@ class in_memory : detail::noncopyable
 
         const_result_iterator &end(void)
         {
-            current_.first = std::numeric_limits<unsigned>::max();
+            current_.first = std::numeric_limits<decltype(current_.first)>::max();
             value_ = keyvalue_t();
             iterators_.clear();
             return *this;
@@ -137,10 +137,12 @@ class in_memory : detail::noncopyable
 
         void set_current(void)
         {
-            for (current_.first=0; current_.first<outer_->num_partitions_  &&  iterators_[current_.first] == outer_->intermediates_[current_.first].end(); ++current_.first)
-                ;
+            for (current_.first=0;
+                 current_.first<outer_->num_partitions_  &&  iterators_[current_.first] == outer_->intermediates_[current_.first].end();
+                 ++current_.first)
+            { }
             
-            for (unsigned loop=current_.first+1; loop<outer_->num_partitions_; ++loop)
+            for (auto loop=current_.first+1; loop<outer_->num_partitions_; ++loop)
             {
                 if (iterators_[loop] != outer_->intermediates_[loop].end()  &&  *iterators_[current_.first] > *iterators_[loop])
                     current_.first = loop;
@@ -173,7 +175,7 @@ class in_memory : detail::noncopyable
         // the current element consists of an index to the partition
         // list, and an iterator within that list
         std::pair<
-            unsigned,                   // index of current element
+            size_t,                     // index of current element
             typename                    // iterator of the sub-element
                 intermediates_t::value_type::mapped_type::const_iterator
         > current_;
@@ -182,7 +184,7 @@ class in_memory : detail::noncopyable
     };
     friend class const_result_iterator;
 
-    explicit in_memory(unsigned const num_partitions=1)
+    explicit in_memory(size_t const num_partitions=1)
       : num_partitions_(num_partitions)
     {
         intermediates_.resize(num_partitions_);
@@ -203,12 +205,12 @@ class in_memory : detail::noncopyable
         swap(intermediates_, other.intermediates_);
     }
 
-    void run_intermediate_results_shuffle(unsigned const /*partition*/)
+    void run_intermediate_results_shuffle(size_t const /*partition*/)
     {
     }
 
     template<typename Callback>
-    void reduce(unsigned const partition, Callback &callback)
+    void reduce(size_t const partition, Callback &callback)
     {
         typename intermediates_t::value_type map;
         using std::swap;
@@ -218,7 +220,7 @@ class in_memory : detail::noncopyable
             callback(result.first, result.second.cbegin(), result.second.cend());
     }
 
-    void merge_from(unsigned partition, in_memory &other)
+    void merge_from(size_t partition, in_memory &other)
     {
         typedef typename intermediates_t::value_type map_type;
 
@@ -249,7 +251,7 @@ class in_memory : detail::noncopyable
 
     void merge_from(in_memory &other)
     {
-        for (unsigned partition=0; partition<num_partitions_; ++partition)
+        for (size_t partition=0; partition<num_partitions_; ++partition)
             merge_from(partition, other);
         other.intermediates_.clear();
     }
@@ -273,8 +275,8 @@ class in_memory : detail::noncopyable
     bool const insert(typename key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
-        unsigned const partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
-        auto &map = intermediates_[partition];
+        size_t const  partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);
+        auto         &map       = intermediates_[partition];
 
         typedef typename intermediates_t::value_type::mapped_type mapped_type;
         map.insert(
@@ -310,7 +312,7 @@ class in_memory : detail::noncopyable
     }
 
   private:
-    unsigned const  num_partitions_;
+    size_t const    num_partitions_;
     intermediates_t intermediates_;
     PartitionFn     partitioner_;
 };
