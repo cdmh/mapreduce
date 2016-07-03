@@ -80,6 +80,9 @@ class in_memory : detail::noncopyable
     {
         friend class boost::iterator_core_access;
 
+      public:
+        const_result_iterator(const_result_iterator const &) = default;
+
       private:
         explicit const_result_iterator(in_memory const *outer)
           : outer_(outer)
