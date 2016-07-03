@@ -57,15 +57,8 @@ class joined_thread_group : public std::vector<std::thread>
     {
         for (auto &thread : *this)
         {
-            try
-            {
+            if (thread.joinable())
                 thread.join();
-            }
-            catch (std::exception &)
-            {
-                // std::thread seems to throw "invalid argument" if
-                // the thread has already gone away when we call join()
-            }
         }
     }
 };
@@ -80,9 +73,9 @@ struct specification
 {
     unsigned       map_tasks;             // ideal number of map tasks to use
     unsigned       reduce_tasks;          // ideal number of reduce tasks to use
-    std::uintmax_t max_file_segment_size; // ideal maximum number of bytes in each input file segment
     std::string    output_filespec;       // filespec of the output files - can contain a directory path if required
     std::string    input_directory;       // directory path to scan for input files
+    std::uintmax_t max_file_segment_size; // ideal maximum number of bytes in each input file segment
 
     specification()
       : map_tasks(0),                   
