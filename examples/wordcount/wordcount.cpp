@@ -121,14 +121,15 @@ std::ostream &operator<<(std::ostream &o, std::pair<char const *, uintmax_t> con
 template<typename Job>
 void write_frequency_table(Job const &job)
 {
-    std::cout << "\n\nMapReduce results:";
     flush(std::cout);
 
     auto it  = job.begin_results();
     auto ite = job.end_results();
     if (it != ite)
     {
-        typedef std::list<typename Job::keyvalue_t> frequencies_t;
+        std::cout << "\n\nMapReduce results:";
+
+        using frequencies_t = std::list<typename Job::keyvalue_t>;
         frequencies_t frequencies;
         frequencies.push_back(*it);
         auto it_smallest = frequencies.rbegin();
