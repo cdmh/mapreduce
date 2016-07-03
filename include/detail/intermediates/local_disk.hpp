@@ -315,7 +315,7 @@ class local_disk : detail::noncopyable
 
       private:
         local_disk                    const *outer_;        // parent container
-        unsigned                             index_;        // index of current element
+        unsigned                             index_ = 0;    // index of current element
         typedef
         std::vector<
             std::pair<
@@ -345,9 +345,7 @@ class local_disk : detail::noncopyable
             typedef typename MapTask::value_type    key_type;
             typedef typename ReduceTask::value_type value_type;
 
-            kv_file() : sorted_(true)
-            {
-            }
+            kv_file() = default;
 
             ~kv_file()
             {
@@ -427,8 +425,8 @@ class local_disk : detail::noncopyable
             std::map<record_t, unsigned>
             records_t;
 
-            bool      sorted_;
-            bool      use_cache_;
+            bool      sorted_    = true;
+            bool      use_cache_ = true;
             records_t records_;
         };
 
