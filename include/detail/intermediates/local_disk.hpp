@@ -171,6 +171,8 @@ class reduce_file_output
         filename << output_filespec << partition+1 << "_of_" << num_partitions;
         filename_ = filename.str();
         output_file_.open(filename_.c_str(), std::ios_base::binary);
+        if (!output_file_.is_open())
+            throw std::runtime_error("Failed to open file " + filename_ );
     }
 
     void operator()(typename ReduceTask::key_type   const &key,
