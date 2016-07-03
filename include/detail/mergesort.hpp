@@ -186,7 +186,7 @@ bool const file_key_combiner(std::string const &in,
         std::string const temp_filename(platform::get_temporary_filename());
         temporary_files.push_back(temp_filename);
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
-        for (typename lines_t::iterator it=lines.begin(); it!=lines.end(); ++it)
+        for (auto it=lines.cbegin(); it!=lines.cend(); ++it)
         {
             if (file.fail())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
@@ -199,11 +199,11 @@ bool const file_key_combiner(std::string const &in,
     if (temporary_files.size() == 1)
     {
         detail::delete_file(out);
-        boost::filesystem::rename(*temporary_files.begin(), out);
+        boost::filesystem::rename(*temporary_files.cbegin(), out);
         temporary_files.clear();
     }
     else
-        detail::do_file_merge(temporary_files.begin(), temporary_files.end(), out);
+        detail::do_file_merge(temporary_files.cbegin(), temporary_files.cend(), out);
 
 	return true;
 }

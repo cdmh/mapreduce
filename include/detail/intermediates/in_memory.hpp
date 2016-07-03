@@ -114,7 +114,7 @@ class in_memory : detail::noncopyable
         const_result_iterator &begin(void)
         {
             for (unsigned loop=0; loop<outer_->num_partitions_; ++loop)
-                iterators_[loop] = outer_->intermediates_[loop].begin();
+                iterators_[loop] = outer_->intermediates_[loop].cbegin();
             set_current();
             return *this;
         }
@@ -147,7 +147,7 @@ class in_memory : detail::noncopyable
                 end();
             else
             {
-                current_.second = iterators_[current_.first]->second.begin();
+                current_.second = iterators_[current_.first]->second.cbegin();
                 value_ = std::make_pair(iterators_[current_.first]->first, *current_.second);
             }
         }
@@ -163,9 +163,9 @@ class in_memory : detail::noncopyable
             typename intermediates_t::value_type::mapped_type::const_iterator>
         current_t;
 
-        in_memory const *outer_;        // parent container
-        iterators_t      iterators_;    // iterator group
         keyvalue_t       value_;        // value of current element
+        iterators_t      iterators_;    // iterator group
+        in_memory const *outer_;        // parent container
 
         // the current element consists of an index to the partition
         // list, and an iterator within that list
@@ -212,7 +212,7 @@ class in_memory : detail::noncopyable
         swap(map, intermediates_[partition]);
 
         for (auto const &result : map)
-            callback(result.first, result.second.begin(), result.second.end());
+            callback(result.first, result.second.cbegin(), result.second.cend());
     }
 
     void merge_from(unsigned partition, in_memory &other)
@@ -238,8 +238,8 @@ class in_memory : detail::noncopyable
                         typename map_type::mapped_type())).first;
 
             std::copy(
-                result.second.begin(),
-                result.second.end(),
+                result.second.cbegin(),
+                result.second.cend(),
                 std::back_inserter(iti->second));
         }
     }

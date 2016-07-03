@@ -93,8 +93,8 @@ void write_stats(mapreduce::results const &result)
     std::cout << "\n    Map keys processed                      : " << result.counters.map_keys_completed;
     std::cout << "\n    Map key processing errors               : " << result.counters.map_key_errors;
     std::cout << "\n    Number of Map Tasks run (in parallel)   : " << result.counters.actual_map_tasks;
-    std::cout << "\n    Fastest Map key processed in            : " << std::min_element(result.map_times.begin(), result.map_times.end())->count() << "s";
-    std::cout << "\n    Slowest Map key processed in            : " << std::max_element(result.map_times.begin(), result.map_times.end())->count() << "s";
+    std::cout << "\n    Fastest Map key processed in            : " << std::min_element(result.map_times.cbegin(), result.map_times.cend())->count() << "s";
+    std::cout << "\n    Slowest Map key processed in            : " << std::max_element(result.map_times.cbegin(), result.map_times.cend())->count() << "s";
     std::cout << "\n    Average time to process Map keys        : " << sum(result.map_times) / result.map_times.size();
 
     std::cout << "\n\n  Reduce:";
@@ -105,8 +105,8 @@ void write_stats(mapreduce::results const &result)
     std::cout << "\n    Number of Result Files                  : " << result.counters.num_result_files;
     if (result.reduce_times.size() > 0)
     {
-        std::cout << "\n    Fastest Reduce key processed in         : " << std::min_element(result.reduce_times.begin(), result.reduce_times.end())->count() << "s";
-        std::cout << "\n    Slowest Reduce key processed in         : " << std::max_element(result.reduce_times.begin(), result.reduce_times.end())->count() << "s";
+        std::cout << "\n    Fastest Reduce key processed in         : " << std::min_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
+        std::cout << "\n    Slowest Reduce key processed in         : " << std::max_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
         std::cout << "\n    Average time to process Reduce keys     : " << sum(result.reduce_times) / result.map_times.size();
     }
 }

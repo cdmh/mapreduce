@@ -30,8 +30,8 @@ struct file_merger
     template<typename List>
     void operator()(List const &filenames, std::string const &dest)
     {
-        std::copy(filenames.begin(), filenames.end(), std::back_inserter(files));
-        std::copy(filenames.begin(), filenames.end(), std::back_inserter(delete_files));
+        std::copy(filenames.cbegin(), filenames.cend(), std::back_inserter(files));
+        std::copy(filenames.cbegin(), filenames.cend(), std::back_inserter(delete_files));
 
         outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
         while (files.size() > 0)
@@ -408,7 +408,7 @@ class local_disk : detail::noncopyable
             bool const flush_cache(void)
             {
                 use_cache_ = false;
-                for (typename records_t::const_iterator it  = records_.begin(); it != records_.end(); ++it)
+                for (auto it  = records_.cbegin(); it != records_.cend(); ++it)
                 {
                     if (!write(it->first.first, it->first.second, it->second))
                         return false;
@@ -456,14 +456,14 @@ class local_disk : detail::noncopyable
             this->close_files();
 
             // delete the temporary files
-            for (typename intermediates_t::iterator it=intermediate_files_.begin();
-                 it!=intermediate_files_.end();
+            for (auto it=intermediate_files_.cbegin();
+                 it!=intermediate_files_.cend();
                  ++it)
             {
                 detail::delete_file(it->second->filename);
-                std::for_each(
-                    it->second->fragment_filenames.begin(),
-                    it->second->fragment_filenames.end(),
+                for_each(
+                    it->second->fragment_filenames.cbegin(),
+                    it->second->fragment_filenames.cend(),
                     std::bind(detail::delete_file, std::placeholders::_1));
             }
         }
@@ -499,8 +499,8 @@ class local_disk : detail::noncopyable
     {
         unsigned const partition = partitioner_(key, num_partitions_);
 
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        if (it == intermediate_files_.end())
+        auto it = intermediate_files_.find(partition);
+        if (it == intermediate_files_.cend())
         {
             it = intermediate_files_.insert(
                     std::make_pair(
@@ -526,7 +526,7 @@ class local_disk : detail::noncopyable
         using std::swap;
 
         this->close_files();
-        for (auto it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
+        for (auto it=intermediate_files_.cbegin(); it!=intermediate_files_.cend(); ++it)
         {
             std::string outfilename = platform::get_temporary_filename();
 
@@ -543,11 +543,11 @@ class local_disk : detail::noncopyable
         assert(num_partitions_ == other.num_partitions_);
         for (unsigned partition=0; partition<num_partitions_; ++partition)
         {
-            typename intermediates_t::iterator ito = other.intermediate_files_.find(partition);
-            if (ito != other.intermediate_files_.end())
+            auto ito = other.intermediate_files_.find(partition);
+            if (ito != other.intermediate_files_.cend())
             {
-                typename intermediates_t::iterator it = intermediate_files_.find(partition);
-                if (it == intermediate_files_.end())
+                auto it = intermediate_files_.find(partition);
+                if (it == intermediate_files_.cend())
                 {
                     it = intermediate_files_.insert(
                             std::make_pair(
@@ -577,8 +577,8 @@ class local_disk : detail::noncopyable
 #ifdef DEBUG_TRACE_OUTPUT
         std::clog << "\nIntermediate Results Shuffle, Partition " << partition << "...";
 #endif
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        assert(it != intermediate_files_.end());
+        auto it = intermediate_files_.find(partition);
+        assert(it != intermediate_files_.cend());
         it->second->write_stream.close();
 
         MergeFn merge_fn;
@@ -596,9 +596,8 @@ class local_disk : detail::noncopyable
         std::clog << "\nReduce Phase running for partition " << partition << "...";
 #endif
 
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        assert(it != intermediate_files_.end());
-        using std::swap;
+        auto it = intermediate_files_.find(partition);
+        assert(it != intermediate_files_.cend());
 
         std::string filename;
         swap(filename, it->second->filename);
@@ -617,7 +616,7 @@ class local_disk : detail::noncopyable
             {
                 if (length(last_key) > 0)
                 {
-                    callback(last_key, values.begin(), values.end());
+                    callback(last_key, values.cbegin(), values.cend());
                     values.clear();
                 }
                 if (length(kv.first) > 0)
@@ -628,7 +627,7 @@ class local_disk : detail::noncopyable
         }
 
         if (length(last_key) > 0)
-            callback(last_key, values.begin(), values.end());
+            callback(last_key, values.cbegin(), values.cend());
 
         infile.close();
         detail::delete_file(filename.c_str());
@@ -652,7 +651,7 @@ class local_disk : detail::noncopyable
   private:
     void close_files(void)
     {
-        for (typename intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
+        for (auto it=intermediate_files_.cbegin(); it!=intermediate_files_.cend(); ++it)
             it->second->write_stream.close();
     }
 

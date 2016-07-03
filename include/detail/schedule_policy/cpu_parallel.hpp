@@ -188,9 +188,7 @@ class cpu_parallel : mapreduce::detail::noncopyable
     void collate_results(results &result)
     {
         // we're done with the map/reduce job, collate the statistics before returning
-        for (all_results_t::const_iterator it=all_results_.begin();
-             it!=all_results_.end();
-             ++it)
+        for (auto it=all_results_.cbegin(); it!=all_results_.cend(); ++it)
         {
             result.counters.map_keys_executed     += (*it)->counters.map_keys_executed;
             result.counters.map_key_errors        += (*it)->counters.map_key_errors;
@@ -200,16 +198,16 @@ class cpu_parallel : mapreduce::detail::noncopyable
             result.counters.reduce_keys_completed += (*it)->counters.reduce_keys_completed;
 
             std::copy(
-                (*it)->map_times.begin(),
-                (*it)->map_times.end(),
+                (*it)->map_times.cbegin(),
+                (*it)->map_times.cend(),
                 std::back_inserter(result.map_times));
             std::copy(
-                (*it)->shuffle_times.begin(),
-                (*it)->shuffle_times.end(),
+                (*it)->shuffle_times.cbegin(),
+                (*it)->shuffle_times.cend(),
                 std::back_inserter(result.shuffle_times));
             std::copy(
-                (*it)->reduce_times.begin(),
-                (*it)->reduce_times.end(),
+                (*it)->reduce_times.cbegin(),
+                (*it)->reduce_times.cend(),
                 std::back_inserter(result.reduce_times));
         }
     }

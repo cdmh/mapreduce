@@ -100,8 +100,8 @@ struct reduce_task : public mapreduce::reduce_task<std::pair<unsigned, unsigned>
             std::vector<unsigned> working_set;
             std::swap(working_set, results);
             std::set_intersection(
-                working_set.begin(),
-                working_set.end(),
+                working_set.cbegin(),
+                working_set.cend(),
                 it1->begin(),
                 it1->end(),
                 std::back_inserter(results));
@@ -111,7 +111,7 @@ struct reduce_task : public mapreduce::reduce_task<std::pair<unsigned, unsigned>
         if (results.size())
         {
             std::cout << "\n{ " << names[key.first] << ", " << names[key.second] << "} -> [ ";
-            for (value_type::const_iterator uid=results.begin(); uid!=results.end(); ++uid)
+            for (auto uid=results.cbegin(); uid!=results.cend(); ++uid)
                 std::cout << names[*uid] << " ";
             std::cout << "]";
 

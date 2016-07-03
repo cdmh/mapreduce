@@ -101,7 +101,7 @@ file_handler<
 {
     // we need to hold the lock for the duration of this function
     std::lock_guard<std::mutex> l(data_->mutex);
-    data::maps_t::iterator it;
+    data::maps_t::const_iterator it;
     if (data_->current_file.empty())
     {
         data_->current_file = key;
