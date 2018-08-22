@@ -89,10 +89,7 @@
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\library\include;$(IncludePath)</IncludePath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\library\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ReferencePath>$(SolutionDir)\bin\$(Configuration)\$(Platform)</ReferencePath>
-    <LibraryPath>$(SolutionDir)\bin\$(Configuration)\$(Platform)\compiler\$(ProjectName)\</LibraryPath>
-  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(SolutionDir)\bin\$(Configuration)\$(Platform)\compiler\$(ProjectName)\</IntDir>

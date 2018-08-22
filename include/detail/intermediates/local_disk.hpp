@@ -30,8 +30,8 @@ struct file_merger
     template<typename List>
     void operator()(List const &filenames, std::string const &dest)
     {
-        std::copy(filenames.begin(), filenames.end(), std::back_inserter(files));
-        std::copy(filenames.begin(), filenames.end(), std::back_inserter(delete_files));
+        std::copy(filenames.cbegin(), filenames.cend(), std::back_inserter(files));
+        std::copy(filenames.cbegin(), filenames.cend(), std::back_inserter(delete_files));
 
         outfile.open(dest.c_str(), std::ios_base::out | std::ios_base::binary);
         while (files.size() > 0)
@@ -164,13 +164,15 @@ class reduce_file_output
 {
   public:
     reduce_file_output(std::string const &output_filespec,
-                       unsigned    const  partition,
-                       unsigned    const  num_partitions)
+                       size_t      const  partition,
+                       size_t      const  num_partitions)
     {
         std::ostringstream filename;
         filename << output_filespec << partition+1 << "_of_" << num_partitions;
         filename_ = filename.str();
         output_file_.open(filename_.c_str(), std::ios_base::binary);
+        if (!output_file_.is_open())
+            throw std::runtime_error("Failed to open file " + filename_ );
     }
 
     void operator()(typename ReduceTask::key_type   const &key,
@@ -191,7 +193,7 @@ struct key_combiner : public T
     // the file_key_combiner will call this function to write multiple
     // occurances of a key/value pair to an output stream. the generic
     // case is to write the same key/value pair multiple times
-    void write_multiple_values(std::ostream &out, unsigned count)
+    void write_multiple_values(std::ostream &out, size_t count)
     {
         if (count == 1)
             out << *this << "\r";
@@ -200,7 +202,7 @@ struct key_combiner : public T
             std::ostringstream stream;
             stream << *this;
             std::string record = stream.str();
-            for (unsigned loop=0; loop<count; ++loop)
+            for (size_t loop=0; loop<count; ++loop)
                 out << record << "\r";
         }
     }
@@ -262,7 +264,7 @@ class local_disk : detail::noncopyable
 
         const_result_iterator &begin(void)
         {
-            for (unsigned loop=0; loop<outer_->num_partitions_; ++loop)
+            for (size_t loop=0; loop<outer_->num_partitions_; ++loop)
             {
                 auto intermediate = outer_->intermediate_files_.find(loop);
                 if (intermediate == outer_->intermediate_files_.end())
@@ -303,7 +305,7 @@ class local_disk : detail::noncopyable
             while (index_<outer_->num_partitions_  &&  kvlist_[index_].first->eof())
                  ++index_;
             
-            for (unsigned loop=index_+1; loop<outer_->num_partitions_; ++loop)
+            for (size_t loop=index_+1; loop<outer_->num_partitions_; ++loop)
             {
                 if (!kvlist_[loop].first->eof()  &&  !kvlist_[index_].first->eof()  &&  kvlist_[index_].second > kvlist_[loop].second)
                     index_ = loop;
@@ -315,7 +317,7 @@ class local_disk : detail::noncopyable
 
       private:
         local_disk                    const *outer_;        // parent container
-        unsigned                             index_;        // index of current element
+        size_t                               index_ = 0;    // index of current element
         typedef
         std::vector<
             std::pair<
@@ -345,9 +347,7 @@ class local_disk : detail::noncopyable
             typedef typename MapTask::value_type    key_type;
             typedef typename ReduceTask::value_type value_type;
 
-            kv_file() : sorted_(true)
-            {
-            }
+            kv_file() = default;
 
             ~kv_file()
             {
@@ -390,13 +390,13 @@ class local_disk : detail::noncopyable
           protected:
             bool const write(key_type   const &key,
                              value_type const &value,
-                             unsigned   const count)
+                             size_t     const count)
             {
                 std::ostringstream linebuf;
                 linebuf << std::make_pair(key,value);
 
                 std::string line(linebuf.str());
-                for (unsigned loop=0; loop<count; ++loop)
+                for (size_t loop=0; loop<count; ++loop)
                 {
                     *this << line << "\r";
                     if (fail())
@@ -408,7 +408,7 @@ class local_disk : detail::noncopyable
             bool const flush_cache(void)
             {
                 use_cache_ = false;
-                for (typename records_t::const_iterator it  = records_.begin(); it != records_.end(); ++it)
+                for (auto it  = records_.cbegin(); it != records_.cend(); ++it)
                 {
                     if (!write(it->first.first, it->first.second, it->second))
                         return false;
@@ -419,16 +419,11 @@ class local_disk : detail::noncopyable
             }
 
           private:
-            typedef
-            std::pair<key_type, value_type>
-            record_t;
+            using record_t  = std::pair<key_type, value_type>;
+            using records_t = std::map<record_t, size_t>;
 
-            typedef
-            std::map<record_t, unsigned>
-            records_t;
-
-            bool      sorted_;
-            bool      use_cache_;
+            bool      sorted_    = true;
+            bool      use_cache_ = true;
             records_t records_;
         };
 
@@ -444,7 +439,7 @@ class local_disk : detail::noncopyable
     intermediates_t;
 
   public:
-    explicit local_disk(unsigned const num_partitions)
+    explicit local_disk(size_t const num_partitions)
       : num_partitions_(num_partitions)
     {
     }
@@ -456,14 +451,15 @@ class local_disk : detail::noncopyable
             this->close_files();
 
             // delete the temporary files
-            for (typename intermediates_t::iterator it=intermediate_files_.begin();
-                 it!=intermediate_files_.end();
+            for (auto it=intermediate_files_.cbegin();
+                 it!=intermediate_files_.cend();
                  ++it)
             {
-                detail::delete_file(it->second->filename);
-                std::for_each(
-                    it->second->fragment_filenames.begin(),
-                    it->second->fragment_filenames.end(),
+                intermediate_file_info const * const fileinfo = it->second.get();
+                detail::delete_file(fileinfo->filename);
+                for_each(
+                    fileinfo->fragment_filenames.cbegin(),
+                    fileinfo->fragment_filenames.cend(),
                     std::bind(detail::delete_file, std::placeholders::_1));
             }
         }
@@ -497,10 +493,10 @@ class local_disk : detail::noncopyable
     bool const insert(typename key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
-        unsigned const partition = partitioner_(key, num_partitions_);
+        size_t const partition = partitioner_(key, num_partitions_);
 
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        if (it == intermediate_files_.end())
+        auto it = intermediate_files_.find(partition);
+        if (it == intermediate_files_.cend())
         {
             it = intermediate_files_.insert(
                     std::make_pair(
@@ -526,14 +522,15 @@ class local_disk : detail::noncopyable
         using std::swap;
 
         this->close_files();
-        for (auto it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
+        for (auto it=intermediate_files_.cbegin(); it!=intermediate_files_.cend(); ++it)
         {
             std::string outfilename = platform::get_temporary_filename();
 
             // run the combine function to combine records with the same key
-            combine_fn_(it->second->filename, outfilename);
-            detail::delete_file(it->second->filename);
-            swap(it->second->filename, outfilename);
+            auto &filename = it->second->filename;
+            combine_fn_(filename, outfilename);
+            detail::delete_file(filename);
+            swap(filename, outfilename);
         }
         this->close_files();
     }
@@ -541,13 +538,13 @@ class local_disk : detail::noncopyable
     void merge_from(local_disk &other)
     {
         assert(num_partitions_ == other.num_partitions_);
-        for (unsigned partition=0; partition<num_partitions_; ++partition)
+        for (size_t partition=0; partition<num_partitions_; ++partition)
         {
-            typename intermediates_t::iterator ito = other.intermediate_files_.find(partition);
-            if (ito != other.intermediate_files_.end())
+            auto ito = other.intermediate_files_.find(partition);
+            if (ito != other.intermediate_files_.cend())
             {
-                typename intermediates_t::iterator it = intermediate_files_.find(partition);
-                if (it == intermediate_files_.end())
+                auto it = intermediate_files_.find(partition);
+                if (it == intermediate_files_.cend())
                 {
                     it = intermediate_files_.insert(
                             std::make_pair(
@@ -572,13 +569,13 @@ class local_disk : detail::noncopyable
         }
     }
 
-    void run_intermediate_results_shuffle(unsigned const partition)
+    void run_intermediate_results_shuffle(size_t const partition)
     {
 #ifdef DEBUG_TRACE_OUTPUT
         std::clog << "\nIntermediate Results Shuffle, Partition " << partition << "...";
 #endif
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        assert(it != intermediate_files_.end());
+        auto it = intermediate_files_.find(partition);
+        assert(it != intermediate_files_.cend());
         it->second->write_stream.close();
 
         MergeFn merge_fn;
@@ -590,15 +587,14 @@ class local_disk : detail::noncopyable
     }
 
     template<typename Callback>
-    void reduce(unsigned const partition, Callback &callback)
+    void reduce(size_t const partition, Callback &callback)
     {
 #ifdef DEBUG_TRACE_OUTPUT
         std::clog << "\nReduce Phase running for partition " << partition << "...";
 #endif
 
-        typename intermediates_t::iterator it = intermediate_files_.find(partition);
-        assert(it != intermediate_files_.end());
-        using std::swap;
+        auto it = intermediate_files_.find(partition);
+        assert(it != intermediate_files_.cend());
 
         std::string filename;
         swap(filename, it->second->filename);
@@ -617,7 +613,7 @@ class local_disk : detail::noncopyable
             {
                 if (length(last_key) > 0)
                 {
-                    callback(last_key, values.begin(), values.end());
+                    callback(last_key, values.cbegin(), values.cend());
                     values.clear();
                 }
                 if (length(kv.first) > 0)
@@ -628,7 +624,7 @@ class local_disk : detail::noncopyable
         }
 
         if (length(last_key) > 0)
-            callback(last_key, values.begin(), values.end());
+            callback(last_key, values.cbegin(), values.cend());
 
         infile.close();
         detail::delete_file(filename.c_str());
@@ -652,14 +648,14 @@ class local_disk : detail::noncopyable
   private:
     void close_files(void)
     {
-        for (typename intermediates_t::iterator it=intermediate_files_.begin(); it!=intermediate_files_.end(); ++it)
+        for (auto it=intermediate_files_.cbegin(); it!=intermediate_files_.cend(); ++it)
             it->second->write_stream.close();
     }
 
   private:
     typedef enum { map_phase, reduce_phase } phase_t;
 
-    unsigned const  num_partitions_;
+    size_t const    num_partitions_;
     intermediates_t intermediate_files_;
     CombineFile     combine_fn_;
     PartitionFn     partitioner_;

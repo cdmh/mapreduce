@@ -47,7 +47,7 @@ class sequential
     void intermediate(Job &job, results &result)
     {
         auto const start_time(std::chrono::system_clock::now());
-        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
+        for (size_t partition=0; partition<job.number_of_partitions(); ++partition)
             job.run_intermediate_results_shuffle(partition);
         result.shuffle_runtime = std::chrono::system_clock::now() - start_time;
     }
@@ -55,7 +55,7 @@ class sequential
     void reduce(Job &job, results &result)
     {
         auto const start_time(std::chrono::system_clock::now());
-        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
+        for (size_t partition=0; partition<job.number_of_partitions(); ++partition)
             job.run_reduce_task(partition, result);
         result.reduce_runtime = std::chrono::system_clock::now() - start_time;
     }

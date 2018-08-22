@@ -57,15 +57,8 @@ class joined_thread_group : public std::vector<std::thread>
     {
         for (auto &thread : *this)
         {
-            try
-            {
+            if (thread.joinable())
                 thread.join();
-            }
-            catch (std::exception &)
-            {
-                // std::thread seems to throw "invalid argument" if
-                // the thread has already gone away when we call join()
-            }
         }
     }
 };
@@ -78,11 +71,11 @@ namespace mapreduce {
 
 struct specification
 {
-    unsigned       map_tasks;             // ideal number of map tasks to use
-    unsigned       reduce_tasks;          // ideal number of reduce tasks to use
-    std::uintmax_t max_file_segment_size; // ideal maximum number of bytes in each input file segment
-    std::string    output_filespec;       // filespec of the output files - can contain a directory path if required
-    std::string    input_directory;       // directory path to scan for input files
+    size_t          map_tasks;             // ideal number of map tasks to use
+    size_t          reduce_tasks;          // ideal number of reduce tasks to use
+    std::string     output_filespec;       // filespec of the output files - can contain a directory path if required
+    std::string     input_directory;       // directory path to scan for input files
+    std::streamsize max_file_segment_size; // ideal maximum number of bytes in each input file segment
 
     specification()
       : map_tasks(0),                   
@@ -97,20 +90,20 @@ struct results
 {
     struct tag_counters
     {
-        unsigned actual_map_tasks;      // number of map tasks actually used
-        unsigned actual_reduce_tasks;   // number of reduce tasks actually used
+        size_t actual_map_tasks;        // number of map tasks actually used
+        size_t actual_reduce_tasks;     // number of reduce tasks actually used
 
         // counters for map key processing
-        unsigned map_keys_executed;
-        unsigned map_key_errors;
-        unsigned map_keys_completed;
+        size_t map_keys_executed;
+        size_t map_key_errors;
+        size_t map_keys_completed;
 
         // counters for reduce key processing
-        unsigned reduce_keys_executed;
-        unsigned reduce_key_errors;
-        unsigned reduce_keys_completed;
+        size_t reduce_keys_executed;
+        size_t reduce_key_errors;
+        size_t reduce_keys_completed;
 
-        unsigned num_result_files;      // number of result files created
+        size_t num_result_files;        // number of result files created
 
         tag_counters()
           : actual_map_tasks(0),

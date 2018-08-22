@@ -106,8 +106,8 @@ class job : detail::noncopyable
       public:
         reduce_task_runner(
             std::string       const &output_filespec,
-            unsigned          const &partition,
-            unsigned          const  num_partitions,
+            size_t            const &partition,
+            size_t            const  num_partitions,
             intermediate_store_type &intermediate_store,
             results                 &result)
           : partition_(partition),
@@ -137,7 +137,7 @@ class job : detail::noncopyable
         }
 
       private:
-        unsigned const          &partition_;
+        size_t const            &partition_;
         results                 &result_;
         intermediate_store_type &intermediate_store_;
         StoreResult              store_result_;
@@ -170,12 +170,12 @@ class job : detail::noncopyable
         return true;
     }
 
-    unsigned const number_of_partitions(void) const
+    size_t const number_of_partitions(void) const
     {
         return specification_.reduce_tasks;
     }
 
-    unsigned const number_of_map_tasks(void) const
+    size_t const number_of_map_tasks(void) const
     {
         return specification_.map_tasks;
     }
@@ -234,12 +234,12 @@ class job : detail::noncopyable
         return true;
     }
 
-    void run_intermediate_results_shuffle(unsigned const partition)
+    void run_intermediate_results_shuffle(size_t const partition)
     {
         intermediate_store_.run_intermediate_results_shuffle(partition);
     }
 
-    bool const run_reduce_task(unsigned const partition, results &result)
+    bool const run_reduce_task(size_t const partition, results &result)
     {
         bool success = true;
 

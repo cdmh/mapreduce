@@ -36,20 +36,20 @@ inline void run_next_map_task(Job &job, std::mutex &m1, std::mutex &m2, results 
 }
 
 template<typename Job>
-inline void run_next_reduce_task(Job &job, unsigned &partition, std::mutex &mutex, results &result)
+inline void run_next_reduce_task(Job &job, size_t &partition, std::mutex &mutex, results &result)
 {
     try
     {
         // local lambda to increment the partition within a lock
         auto incr_partition = [&partition, &mutex] {
             std::lock_guard<std::mutex> guard(mutex);
-            unsigned const part = partition++;
+            size_t const part = partition++;
             return part;
         };
 
         while (1)
         {
-            unsigned const part = incr_partition();
+            size_t const part = incr_partition();
             if (part < job.number_of_partitions())
                 job.run_reduce_task(part, result);
             else
@@ -63,7 +63,7 @@ inline void run_next_reduce_task(Job &job, unsigned &partition, std::mutex &mute
 }
 
 template<typename Job>
-void run_intermediate_results_shuffle(Job &job, unsigned const partition, results &result)
+void run_intermediate_results_shuffle(Job &job, size_t const partition, results &result)
 {
     try
     {
@@ -100,14 +100,13 @@ class cpu_parallel : mapreduce::detail::noncopyable
   private:
     void map(Job &job, results &result)
     {
-        std::mutex m1, m2;
-
         // run the Map Tasks
-        auto     const start_time = std::chrono::system_clock::now();
-        unsigned const map_tasks  = std::max(num_cpus_,std::min(num_cpus_, job.number_of_map_tasks()));
+        auto   const start_time = std::chrono::system_clock::now();
+        size_t const map_tasks  = std::max(size_t(num_cpus_), std::min(size_t(num_cpus_), job.number_of_map_tasks()));
 
+        std::mutex m1, m2;
         mapreduce::detail::joined_thread_group map_threads;
-        for (unsigned loop=0; loop<map_tasks; ++loop)
+        for (size_t loop=0; loop<map_tasks; ++loop)
         {
             auto this_result = std::make_shared<results>();
             all_results_.push_back(this_result);
@@ -132,10 +131,10 @@ class cpu_parallel : mapreduce::detail::noncopyable
         auto const start_time = std::chrono::system_clock::now();
 
         mapreduce::detail::joined_thread_group shuffle_threads;
-        for (unsigned partition=0; partition<job.number_of_partitions(); ++partition)
+        for (size_t partition=0; partition<job.number_of_partitions(); ++partition)
         {
-            for (unsigned loop=0;
-                 loop<num_cpus_  &&  partition<job.number_of_partitions();
+            for (size_t loop=0;
+                 loop<size_t(num_cpus_)  &&  partition<job.number_of_partitions();
                  ++loop, ++partition)
             {
                 auto this_result = std::make_shared<results>();
@@ -160,13 +159,11 @@ class cpu_parallel : mapreduce::detail::noncopyable
 
         // run the Reduce Tasks
         mapreduce::detail::joined_thread_group reduce_threads;
-        unsigned const reduce_tasks =
-            std::min<unsigned const>(num_cpus_, job.number_of_partitions());
+        auto const start_time   = std::chrono::system_clock::now();
+        auto const reduce_tasks = std::min(size_t(num_cpus_), job.number_of_partitions());
 
-        auto const start_time(std::chrono::system_clock::now());
-
-        unsigned partition = 0;
-        for (unsigned loop=0; loop<reduce_tasks; ++loop)
+        size_t partition = 0;
+        for (size_t loop=0; loop<reduce_tasks; ++loop)
         {
             auto this_result = std::make_shared<results>();
             all_results_.push_back(this_result);
@@ -188,9 +185,7 @@ class cpu_parallel : mapreduce::detail::noncopyable
     void collate_results(results &result)
     {
         // we're done with the map/reduce job, collate the statistics before returning
-        for (all_results_t::const_iterator it=all_results_.begin();
-             it!=all_results_.end();
-             ++it)
+        for (auto it=all_results_.cbegin(); it!=all_results_.cend(); ++it)
         {
             result.counters.map_keys_executed     += (*it)->counters.map_keys_executed;
             result.counters.map_key_errors        += (*it)->counters.map_key_errors;
@@ -200,23 +195,23 @@ class cpu_parallel : mapreduce::detail::noncopyable
             result.counters.reduce_keys_completed += (*it)->counters.reduce_keys_completed;
 
             std::copy(
-                (*it)->map_times.begin(),
-                (*it)->map_times.end(),
+                (*it)->map_times.cbegin(),
+                (*it)->map_times.cend(),
                 std::back_inserter(result.map_times));
             std::copy(
-                (*it)->shuffle_times.begin(),
-                (*it)->shuffle_times.end(),
+                (*it)->shuffle_times.cbegin(),
+                (*it)->shuffle_times.cend(),
                 std::back_inserter(result.shuffle_times));
             std::copy(
-                (*it)->reduce_times.begin(),
-                (*it)->reduce_times.end(),
+                (*it)->reduce_times.cbegin(),
+                (*it)->reduce_times.cend(),
                 std::back_inserter(result.reduce_times));
         }
     }
 
   private:
     typedef std::vector<std::shared_ptr<results> > all_results_t;
-    all_results_t all_results_;
+    all_results_t  all_results_;
     unsigned const num_cpus_;
 };
 

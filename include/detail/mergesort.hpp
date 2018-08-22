@@ -164,7 +164,7 @@ bool const file_key_combiner(std::string const &in,
 
     while (!infile.eof())
     {
-        typedef std::map<std::shared_ptr<Record>, unsigned, shared_ptr_indirect_less<Record> > lines_t;
+        using lines_t = std::map<std::shared_ptr<Record>, std::streamsize, shared_ptr_indirect_less<Record>>;
         lines_t lines;
 
         for (uint32_t loop=0; !infile.eof()  &&  loop<max_lines; ++loop)
@@ -179,14 +179,14 @@ bool const file_key_combiner(std::string const &in,
                 auto record = std::make_shared<Record>();
                 std::istringstream l(line);
                 l >> *record;
-                ++lines.insert(std::make_pair(record, 0U)).first->second;
+                ++lines.insert(std::make_pair(record, std::streamsize())).first->second;
             }
         }
 
         std::string const temp_filename(platform::get_temporary_filename());
         temporary_files.push_back(temp_filename);
         std::ofstream file(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
-        for (typename lines_t::iterator it=lines.begin(); it!=lines.end(); ++it)
+        for (auto it=lines.cbegin(); it!=lines.cend(); ++it)
         {
             if (file.fail())
                 BOOST_THROW_EXCEPTION(std::runtime_error("An error occurred writing temporary a file."));
@@ -199,11 +199,11 @@ bool const file_key_combiner(std::string const &in,
     if (temporary_files.size() == 1)
     {
         detail::delete_file(out);
-        boost::filesystem::rename(*temporary_files.begin(), out);
+        boost::filesystem::rename(*temporary_files.cbegin(), out);
         temporary_files.clear();
     }
     else
-        detail::do_file_merge(temporary_files.begin(), temporary_files.end(), out);
+        detail::do_file_merge(temporary_files.cbegin(), temporary_files.cend(), out);
 
 	return true;
 }

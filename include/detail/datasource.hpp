@@ -64,9 +64,9 @@ struct file_handler<
 {
     struct detail
     {
-        boost::iostreams::mapped_file mmf;  // memory mapped file
-        std::uintmax_t              size;   // size of the file
-        std::uintmax_t              offset; // offset to map next time
+        boost::iostreams::mapped_file mmf;    // memory mapped file
+        std::streamsize               size;   // size of the file
+        std::streamsize               offset; // offset to map next time
     };
 
     typedef
@@ -101,46 +101,50 @@ file_handler<
 {
     // we need to hold the lock for the duration of this function
     std::lock_guard<std::mutex> l(data_->mutex);
-    data::maps_t::iterator it;
+    data::maps_t::const_iterator it;
     if (data_->current_file.empty())
     {
         data_->current_file = key;
         it = data_->maps.insert(std::make_pair(key, std::make_shared<data::detail>())).first;
-        it->second->mmf.open(key, BOOST_IOS::in);
-        if (!it->second->mmf.is_open())
+        auto &detail = it->second;
+        auto &mmf = detail->mmf;
+        mmf.open(key, BOOST_IOS::in);
+        if (!mmf.is_open())
         {
             std::cerr << "\nFailed to map file into memory: " << key;
             return false;
         }
 
-        it->second->size   = boost::filesystem::file_size(key);
-        it->second->offset = std::min(specification_.max_file_segment_size, it->second->size);
-        value.first        = it->second->mmf.const_data();
-        value.second       = it->second->offset;
+        detail->size   = boost::filesystem::file_size(key);
+        detail->offset = std::min(specification_.max_file_segment_size, detail->size);
+        value.first    = mmf.const_data();
+        value.second   = detail->offset;
     }
     else
     {
         assert(key == data_->current_file);
         it = data_->maps.find(key);
         assert(it != data_->maps.end());
+        auto &detail = it->second;
 
-        std::uintmax_t const new_offset = std::min(it->second->offset+specification_.max_file_segment_size, it->second->size); 
-        value.first        = it->second->mmf.const_data() + it->second->offset;
-        value.second       = new_offset - it->second->offset;
-        it->second->offset = new_offset;
+        std::uintmax_t const new_offset = std::min(detail->offset+specification_.max_file_segment_size, detail->size); 
+        value.first  = detail->mmf.const_data() + detail->offset;
+        value.second = new_offset - detail->offset;
+        detail->offset = new_offset;
     }
 
-    if (it->second->offset == it->second->size)
+    auto &detail = it->second;
+    if (detail->offset == detail->size)
         data_->current_file.clear();
     else
     {
         // break on a line boundary
         char const *ptr = value.first + value.second;
-        while (*ptr != '\n'  &&  *ptr != '\r'  &&  it->second->offset != it->second->size)
+        while (*ptr != '\n'  &&  *ptr != '\r'  &&  detail->offset != detail->size)
         {
             ++ptr;
             ++value.second;
-            ++it->second->offset;
+            ++detail->offset;
         }
     }
 
