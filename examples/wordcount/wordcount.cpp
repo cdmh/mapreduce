@@ -63,17 +63,6 @@ bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
          || ((first.second < second.second)  &&  (STRNICMP(first.first, second.first, std::min(first.second, second.second)) <= 0));
 }
 
-template<>
-bool std::less<std::string>::operator()(
-         std::string const &first,
-         std::string const &second) const
-{
-    return
-        std::less<std::pair<char const *, std::uintmax_t>>()(
-            std::pair<char const *, std::uintmax_t>(first.c_str(), first.length()),
-            std::pair<char const *, std::uintmax_t>(second.c_str(), second.length()));
-}
-
 namespace {
 
 template<typename T>
