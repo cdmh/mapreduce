@@ -4,6 +4,7 @@
 #pragma once
 
 #include <iomanip>      // setw
+#include "job.hpp"
 #ifdef __GNUC__
 #include <iostream>     // ubuntu linux
 #include <fstream>      // ubuntu linux
@@ -65,7 +66,7 @@ struct file_merger
         using std::vector<std::string>::const_reference;
     };
 
-    void open_files(void)
+    void open_files()
     {
         // open each file and read the first record (line) from each
         while (files.size() > 0)
@@ -247,7 +248,7 @@ class local_disk : detail::noncopyable
             kvlist_.resize(outer_->num_partitions_);
         }
 
-        void increment(void)
+        void increment()
         {
             if (!kvlist_[index_].first->eof())
                 read_record(*kvlist_[index_].first, kvlist_[index_].second.first, kvlist_[index_].second.second);
@@ -262,7 +263,7 @@ class local_disk : detail::noncopyable
                &&  kvlist_[index_].second == other.kvlist_[index_].second);
         }
 
-        const_result_iterator &begin(void)
+        const_result_iterator &begin()
         {
             for (size_t loop=0; loop<outer_->num_partitions_; ++loop)
             {
@@ -287,19 +288,19 @@ class local_disk : detail::noncopyable
             return *this;
         }
 
-        const_result_iterator &end(void)
+        const_result_iterator &end()
         {
             index_ = 0;
             kvlist_.clear();
             return *this;
         }
 
-        keyvalue_t const &dereference(void) const
+        keyvalue_t const &dereference() const
         {
             return kvlist_[index_].second;
         }
 
-        void set_current(void)
+        void set_current()
         {
             index_ = 0;
             while (index_<outer_->num_partitions_  &&  kvlist_[index_].first->eof())
@@ -333,11 +334,9 @@ class local_disk : detail::noncopyable
   private:
     struct intermediate_file_info
     {
-        intermediate_file_info()
-        {
-        }
+        intermediate_file_info() = default;
 
-        intermediate_file_info(std::string fname)
+        explicit intermediate_file_info(std::string const& fname)
           : filename(fname)
         {
         }
@@ -361,7 +360,7 @@ class local_disk : detail::noncopyable
                 std::ofstream::open(filename.c_str(), std::ios_base::binary);
             }
 
-            void close(void)
+            void close()
             {
                 if (is_open())
                 {
@@ -405,7 +404,7 @@ class local_disk : detail::noncopyable
                 return true;
             }
 
-            bool const flush_cache(void)
+            bool const flush_cache()
             {
                 use_cache_ = false;
                 for (auto it  = records_.cbegin(); it != records_.cend(); ++it)
@@ -469,12 +468,12 @@ class local_disk : detail::noncopyable
         }
     }
 
-    const_result_iterator begin_results(void) const
+    const_result_iterator begin_results() const
     {
         return const_result_iterator(this).begin();
     }
 
-    const_result_iterator end_results(void) const
+    const_result_iterator end_results() const
     {
         return const_result_iterator(this).end();
     }
@@ -490,7 +489,7 @@ class local_disk : detail::noncopyable
     }
 
     // receive intermediate result
-    bool const insert(typename key_type                     const &key,
+    bool const insert(key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
         size_t const partition = partitioner_(key, num_partitions_);
@@ -646,7 +645,7 @@ class local_disk : detail::noncopyable
     }
 
   private:
-    void close_files(void)
+    void close_files()
     {
         for (auto it=intermediate_files_.cbegin(); it!=intermediate_files_.cend(); ++it)
             it->second->write_stream.close();

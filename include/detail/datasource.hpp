@@ -4,6 +4,7 @@
 #pragma once
 
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <mutex>
 
 namespace mapreduce {
 
@@ -15,7 +16,7 @@ template<typename Key, typename Value>
 class file_handler : ::mapreduce::detail::noncopyable
 {
   public:
-    file_handler(mapreduce::specification const &spec);
+    explicit file_handler(mapreduce::specification const &spec);
 
     bool const get_data(Key const &key, Value &value)   const;
     bool const setup_key(Key &/*key*/)                  const { return false; }
@@ -176,7 +177,7 @@ template<
 class directory_iterator : mapreduce::detail::noncopyable
 {
   public:
-    directory_iterator(mapreduce::specification const &spec)
+    explicit directory_iterator(mapreduce::specification const &spec)
       : specification_(spec),
         file_handler_(spec)
     {

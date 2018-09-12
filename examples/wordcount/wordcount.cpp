@@ -20,6 +20,13 @@
 #include <crtdbg.h>
 #endif
 
+
+#if defined(__GNUC__) || defined(__GNUG__)
+#define STRNICMP    strncasecmp
+#elif defined(_MSC_VER)
+#define STRNICMP    strnicmp
+#endif
+
 #include "wordcount.h"
 #include <iostream>
 
@@ -52,12 +59,11 @@ bool std::less<std::pair<char const *, std::uintmax_t> >::operator()(
          std::pair<char const *, std::uintmax_t> const &first,
          std::pair<char const *, std::uintmax_t> const &second) const
 {
-    return (strnicmp(first.first, second.first, std::min(first.second, second.second)) < 0)
-         || ((first.second < second.second)  &&  (strnicmp(first.first, second.first, std::min(first.second, second.second)) <= 0));
+    return (STRNICMP(first.first, second.first, std::min(first.second, second.second)) < 0)
+         || ((first.second < second.second)  &&  (STRNICMP(first.first, second.first, std::min(first.second, second.second)) <= 0));
 }
 
 template<>
-constexpr
 bool std::less<std::string>::operator()(
          std::string const &first,
          std::string const &second) const
@@ -81,7 +87,7 @@ double const sum(T const &durations)
 
 void write_stats(mapreduce::results const &result)
 {
-    if (result.map_times.size() == 0  || result.reduce_times.size() == 0)
+    if (result.map_times.empty()  || result.reduce_times.empty())
         return;
 
     std::cout << std::endl << "\nMapReduce statistics:";
@@ -103,7 +109,7 @@ void write_stats(mapreduce::results const &result)
     std::cout << "\n    Reduce key processing errors            : " << result.counters.reduce_key_errors;
     std::cout << "\n    Number of Reduce Tasks run (in parallel): " << result.counters.actual_reduce_tasks;
     std::cout << "\n    Number of Result Files                  : " << result.counters.num_result_files;
-    if (result.reduce_times.size() > 0)
+    if (!result.reduce_times.empty())
     {
         std::cout << "\n    Fastest Reduce key processed in         : " << std::min_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
         std::cout << "\n    Slowest Reduce key processed in         : " << std::max_element(result.reduce_times.cbegin(), result.reduce_times.cend())->count() << "s";
@@ -174,7 +180,7 @@ void run_wordcount(mapreduce::specification const &spec)
         job.run<mapreduce::schedule_policy::sequential<Job> >(result);
 #else
         std::cout << "\nRunning Parallel WordCount MapReduce...";
-        job.run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
+        job.template run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
 #endif
         std::cout << "\nMapReduce Finished.";
 
