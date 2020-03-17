@@ -53,7 +53,7 @@ class joined_thread_group : public std::vector<std::thread>
         join_all();
     }
 
-    void join_all(void)
+    void join_all()
     {
         for (auto &thread : *this)
         {
@@ -146,7 +146,7 @@ void run(mapreduce::specification &spec, mapreduce::results &result)
 {
     typename Job::datasource_type datasource(spec);
     Job job(datasource, spec);
-    job.run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
+    job.template run<mapreduce::schedule_policy::cpu_parallel<Job> >(result);
 }
 
 }   // namespace mapreduce

@@ -82,7 +82,7 @@ std::string get_temporary_filename(std::string &pathname)
 {
     const std::string tmp = "/tmp/XXXXXX";
     char* tmpfile = const_cast<char*>(tmp.c_str());
-    mkstemp(tmpfile);
+    auto tmp2 = mkstemp(tmpfile);
     std::string res(tmpfile);
     return res;
 }
