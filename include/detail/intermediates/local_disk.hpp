@@ -4,7 +4,7 @@
 #pragma once
 
 #include <iomanip>      // setw
-#include "job.hpp"
+#include "../job.hpp"
 #ifdef __GNUC__
 #include <iostream>     // ubuntu linux
 #include <fstream>      // ubuntu linux
