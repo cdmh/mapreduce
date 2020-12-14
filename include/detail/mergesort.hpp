@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <boost/filesystem.hpp>
 
 #ifdef __GNUC__
@@ -49,7 +50,7 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
         // in the meantime, we assert if we go round the loop more than once as it will produce incorrect results
         assert(++count == 1);
 
-        typedef std::list<std::pair<std::shared_ptr<std::ifstream>, std::string> > file_lines_t;
+        typedef std::vector<std::pair<std::shared_ptr<std::ifstream>, std::string> > file_lines_t;
         file_lines_t file_lines;
         for (; first!=last; ++first)
         {
@@ -66,18 +67,24 @@ bool const do_file_merge(It first, It last, std::string const &outfilename)
             file_lines.push_back(std::make_pair(file, line));
         }
 
+        std::make_heap(begin(file_lines), end(file_lines), [](const std::string& l, const std::string& r) { return l > r; });
         while (file_lines.size() > 0)
         {
             typename file_lines_t::iterator it;
             if (file_lines.size() == 1)
                 it = file_lines.begin();
             else
-                it = std::min_element(file_lines.begin(), file_lines.end());
+            {
+                std::pop_heap(begin(file_lines), end(file_lines));
+                it = file_lines.back();
+            }
             outfile << it->second << "\r";
 
             std::getline(*it->first, it->second, '\r');
             if (it->first->eof())
                 file_lines.erase(it);
+            else
+                std::push_heap(begin(file_lines), end(file_lines));
         }
     }
 
