@@ -93,7 +93,7 @@ class in_memory : detail::noncopyable
 
         const_result_iterator &operator=(const_result_iterator const &other);
 
-        void increment(void)
+        void increment()
         {
             ++current_.second;
             if (current_.second == iterators_[current_.first]->second.end())
@@ -114,7 +114,7 @@ class in_memory : detail::noncopyable
             return value_ == other.value_;
         }
 
-        const_result_iterator &begin(void)
+        const_result_iterator &begin()
         {
             for (size_t loop=0; loop<outer_->num_partitions_; ++loop)
                 iterators_[loop] = outer_->intermediates_[loop].cbegin();
@@ -122,7 +122,7 @@ class in_memory : detail::noncopyable
             return *this;
         }
 
-        const_result_iterator &end(void)
+        const_result_iterator &end()
         {
             current_.first = std::numeric_limits<decltype(current_.first)>::max();
             value_ = keyvalue_t();
@@ -130,12 +130,12 @@ class in_memory : detail::noncopyable
             return *this;
         }
 
-        keyvalue_t const &dereference(void) const
+        keyvalue_t const &dereference() const
         {
             return value_;
         }
 
-        void set_current(void)
+        void set_current()
         {
             for (current_.first=0;
                  current_.first<outer_->num_partitions_  &&  iterators_[current_.first] == outer_->intermediates_[current_.first].end();
@@ -190,12 +190,12 @@ class in_memory : detail::noncopyable
         intermediates_.resize(num_partitions_);
     }
 
-    const_result_iterator begin_results(void) const
+    const_result_iterator begin_results() const
     {
         return const_result_iterator(this).begin();
     }
 
-    const_result_iterator end_results(void) const
+    const_result_iterator end_results() const
     {
         return const_result_iterator(this).end();
     }
@@ -263,7 +263,6 @@ class in_memory : detail::noncopyable
     }
 
     // receive final result
-    template<typename StoreResult>
     bool const insert(typename reduce_task_type::key_type   const &key,
                       typename reduce_task_type::value_type const &value,
                       StoreResult &store_result)
@@ -272,7 +271,7 @@ class in_memory : detail::noncopyable
     }
 
     // receive intermediate result
-    bool const insert(typename key_type                     const &key,
+    bool const insert(key_type                     const &key,
                       typename reduce_task_type::value_type const &value)
     {
         size_t const  partition = (num_partitions_ == 1)? 0 : partitioner_(key, num_partitions_);

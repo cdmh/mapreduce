@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "datasource.hpp"
+
 namespace mapreduce {
 
 template<typename T> uintmax_t    const length(T const &str);
@@ -65,7 +67,7 @@ class job : detail::noncopyable
       public:
         typedef ReduceTask reduce_task_type;
 
-        map_task_runner(job &j)
+        explicit map_task_runner(job &j)
           : job_(j),
             intermediate_store_(job_.number_of_partitions())
         {
@@ -91,7 +93,7 @@ class job : detail::noncopyable
             return intermediate_store_.insert(key, value);
         }
 
-        intermediate_store_type &intermediate_store(void)
+        intermediate_store_type &intermediate_store()
         {
             return intermediate_store_;
         }
@@ -117,7 +119,7 @@ class job : detail::noncopyable
         {
         }
 
-        void reduce(void)
+        void reduce()
         {
             intermediate_store_.reduce(partition_, *this);
         }
@@ -151,12 +153,12 @@ class job : detail::noncopyable
      {
      }
 
-    const_result_iterator begin_results(void) const
+    const_result_iterator begin_results() const
     {
         return intermediate_store_.begin_results();
     }
 
-    const_result_iterator end_results(void) const
+    const_result_iterator end_results() const
     {
         return intermediate_store_.end_results();
     }
@@ -170,12 +172,12 @@ class job : detail::noncopyable
         return true;
     }
 
-    size_t const number_of_partitions(void) const
+    size_t const number_of_partitions() const
     {
         return specification_.reduce_tasks;
     }
 
-    size_t const number_of_map_tasks(void) const
+    size_t const number_of_map_tasks() const
     {
         return specification_.map_tasks;
     }
