@@ -46,7 +46,7 @@ template<typename KeyType>
 struct reduce_task : public mapreduce::reduce_task<KeyType, unsigned>
 {
     template<typename Runtime, typename It>
-    void operator()(Runtime &runtime, key_type const &key, It it, It const ite) const
+    void operator()(Runtime &runtime, KeyType const &key, It it, It const ite) const
     {
         runtime.emit(key, std::accumulate(it, ite, 0));
     }

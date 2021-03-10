@@ -1,5 +1,8 @@
 MapReduce C++ Library
 =
+
+This is a fork of cdmh/mapreduce, this fork aims to help the portabillity of the original code, for any questions please contact the original developer.
+
 The MapReduce C++ Library implements a single-machine platform for programming using the the Google MapReduce idiom. Users specify a map function that processes a key/value pair to generate a set of intermediate key/value pairs, and a reduce function that merges all intermediate values associated with the same intermediate key. Many real world tasks are expressible in this model, as shown in the Google paper.
 
     map (k1,v1) --> list(k2,v2)
